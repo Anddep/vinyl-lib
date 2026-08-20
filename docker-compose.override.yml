@@ -1,0 +1,31 @@
+services:
+  client:
+    build:
+      target: dev
+    command: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - SERVER_PORT=${SERVER_PORT}
+    ports:
+      - '${CLIENT_PORT}:5173'
+    volumes:
+      - ./client:/app/client
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - /app/node_modules
+      - /app/client/node_modules
+
+  server:
+    build:
+      target: dev
+    command: ['npm', 'run', 'dev']
+    environment:
+      - NODE_ENV=development
+      - PORT=${SERVER_PORT}
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - ./server:/app/server
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - /app/node_modules
+      - /app/server/node_modules

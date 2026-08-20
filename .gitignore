@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+dist/
+build/
+client/dist/
+server/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Prisma generated client output
+server/generated/
+server/src/generated/
+
+# Docker
+docker-data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# TypeScript build info / stray project-reference emit
+*.tsbuildinfo
+client/vite.config.js
+client/vite.config.d.ts

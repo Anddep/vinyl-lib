@@ -1,0 +1,14 @@
+services:
+  client:
+    build:
+      target: prod
+    ports:
+      - '${CLIENT_PORT}:80'
+    environment:
+      - SERVER_PORT=${SERVER_PORT}
+
+  server:
+    build:
+      target: prod
+    environment:
+      - NODE_ENV=production

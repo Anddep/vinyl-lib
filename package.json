@@ -1,0 +1,40 @@
+{
+  "name": "vinyl-lib",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:down": "docker compose down",
+    "prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
+    "build": "npm run build -w client && npm run build -w server",
+    "lint": "npm run lint -w client && npm run lint -w server",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0"
+  },
+  "lint-staged": {
+    "client/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "server/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "esbuild@0.21.5": true,
+    "prisma@5.22.0": true
+  }
+}

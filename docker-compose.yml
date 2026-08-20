@@ -1,0 +1,52 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      target: prod
+    depends_on:
+      - server
+    networks:
+      - app-network
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: prod
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${SERVER_PORT}
+      - DATABASE_URL=${DATABASE_URL}
+    ports:
+      - '${SERVER_PORT}:${SERVER_PORT}'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+
+networks:
+  app-network:
+    driver: bridge

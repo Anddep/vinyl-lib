@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/build
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+.DS_Store
+**/*.log
+.husky
+.github
