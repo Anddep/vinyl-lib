@@ -2,6 +2,7 @@
 
 # ---- deps: install full workspace so npm workspaces resolve correctly ----
 FROM node:20-alpine AS deps
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
@@ -10,6 +11,8 @@ RUN npm install
 
 # ---- dev: ts-node-dev with hot reload ----
 FROM deps AS dev
+COPY server/prisma ./server/prisma
+RUN npx prisma generate --schema=./server/prisma/schema.prisma
 WORKDIR /app/server
 EXPOSE 4000
 CMD ["npm", "run", "dev"]
@@ -21,6 +24,7 @@ RUN npm run build -w server
 
 # ---- prod: run compiled JS only ----
 FROM node:20-alpine AS prod
+RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
