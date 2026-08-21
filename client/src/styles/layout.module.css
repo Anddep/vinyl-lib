@@ -1,0 +1,70 @@
+/*
+ * Shared layout primitives. Section modules pull these in with `composes`
+ * so the container width and divider rhythm are defined exactly once.
+ */
+
+.container {
+  max-width: var(--layout-max);
+  margin: 0 auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
+
+/* Section divider: hairline rule with 40px of air beneath it. */
+.divided {
+  border-top: 1px solid var(--color-border-section);
+  padding-top: var(--space-10);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Heading row: title on the left, mono aside baseline-aligned on the right. */
+.headerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.aside {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.displayHeading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-leading);
+  letter-spacing: var(--text-h1-tracking);
+  color: var(--color-text-primary);
+}
+
+.sansHeading {
+  margin: 0;
+  font-size: var(--text-h2-size);
+  font-weight: 500;
+  line-height: var(--text-h2-leading);
+  letter-spacing: var(--text-h2-tracking);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 767px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+}

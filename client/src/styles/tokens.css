@@ -1,0 +1,129 @@
+/*
+ * Design tokens — "Grooves & Dust"
+ * Source of truth: design_handoff_vinyl_collection/Design System.dc.html
+ * Values here are final per the handoff; change them here, never inline.
+ */
+
+:root {
+  /* ---- Color · surfaces ---- */
+  --color-bg-base: #100f0e;
+  --color-bg-raised: #191715;
+  --color-bg-panel: #161412;
+  --color-bg-band: #141312;
+  --color-bg-inset: #221f1c;
+  --color-bg-media: #1c1917;
+  --color-bg-empty: #131211;
+
+  /* ---- Color · borders ---- */
+  --color-border-hairline: #2b2825;
+  --color-border-section: #241f1c;
+  --color-border-strong: #3d3833;
+
+  /* ---- Color · text ---- */
+  --color-text-primary: #f7f2e8;
+  --color-text-body: #f2ece1;
+  --color-text-secondary: #a49b8c;
+  --color-text-muted: #8a8175;
+  --color-text-faint: #6f675d;
+  --color-text-ghost: #4f4941;
+  --color-text-on-accent: #0b0a09;
+
+  /* ---- Color · accent ---- */
+  --color-accent: #e8b45c;
+  --color-accent-lift: #f5cd86;
+  --color-accent-mid: #c2913c;
+  --color-accent-dim: #8a6427;
+  --color-accent-wash: #3a2c14;
+
+  /*
+   * Added token — the handoff leaves form-error color undefined and asks for
+   * "a warm red derived from the accent hue". This is the amber hue rotated
+   * to ~16deg, kept at a lightness that stays legible on --color-bg-base.
+   */
+  --color-danger: #e07a5f;
+  --color-danger-dim: #8a3a28;
+
+  /* ---- Color · overlays (derived from --color-text-on-accent) ---- */
+  --overlay-scrim: rgba(11, 10, 9, 0.78);
+  --overlay-gradient: linear-gradient(to top, rgba(11, 10, 9, 0.9), rgba(11, 10, 9, 0.05));
+  --overlay-badge: rgba(11, 10, 9, 0.72);
+  --overlay-nav: rgba(16, 15, 14, 0.88);
+
+  /* ---- Typography ---- */
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-sans: Geist, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  --text-display-size: 92px;
+  --text-display-leading: 0.94;
+  --text-display-tracking: -0.02em;
+  --text-h1-size: 48px;
+  --text-h1-leading: 1.05;
+  --text-h1-tracking: -0.015em;
+  --text-h2-size: 32px;
+  --text-h2-leading: 1.18;
+  --text-h2-tracking: -0.015em;
+  --text-h3-size: 22px;
+  --text-body-lg-size: 19px;
+  --text-body-size: 15px;
+  --text-caption-size: 13px;
+
+  /* ---- Spacing (4px base) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-18: 72px;
+  --space-22: 88px;
+  --space-24: 96px;
+
+  /* ---- Radius ---- */
+  --radius-chip: 4px;
+  --radius-md: 8px;
+  --radius-panel: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Motion ---- */
+  --motion-quick: 220ms;
+  --motion-lift: 300ms;
+  --ease-out: ease-out;
+  --ease-lift: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --transition-quick: var(--motion-quick) var(--ease-out);
+  --transition-lift: var(--motion-lift) var(--ease-lift);
+
+  /* ---- Shadow ---- */
+  --shadow-card: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --shadow-disc: 0 24px 60px rgba(0, 0, 0, 0.6);
+
+  /* ---- Layout ----
+   * --gutter drives every section's horizontal padding, so the responsive
+   * 64 -> 32 -> 20 step is declared once here rather than per component.
+   */
+  --layout-max: 1440px;
+  --gutter: var(--space-16);
+  --section-rhythm: var(--space-24);
+}
+
+@media (max-width: 1199px) {
+  :root {
+    --gutter: var(--space-8);
+    /* The 92px display line is composed for a 1440px canvas; step it down so
+       the three hard-broken hero lines still fit a tablet column. */
+    --text-display-size: 68px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --gutter: var(--space-5);
+    --text-display-size: 52px;
+    --text-h1-size: 34px;
+    --text-h2-size: 26px;
+  }
+}

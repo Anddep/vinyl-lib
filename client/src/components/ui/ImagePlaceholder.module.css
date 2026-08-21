@@ -1,0 +1,49 @@
+/*
+ * Striped stand-in for pending photography. Keeps the exact slot size and
+ * aspect ratio so swapping in a real <img> is a drop-in change.
+ */
+.placeholder {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-media);
+}
+
+.photo {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-5);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(232, 180, 92, 0.08) 0 7px,
+    transparent 7px 14px
+  );
+}
+
+.cover {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(232, 180, 92, 0.09) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.photoCaption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.coverCaption {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}

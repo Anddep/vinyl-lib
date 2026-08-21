@@ -1,0 +1,59 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  transition: color var(--transition-quick);
+}
+
+.control {
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  color: var(--color-text-body);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color var(--transition-quick);
+}
+
+.control::placeholder {
+  color: var(--color-text-faint);
+}
+
+.control:focus {
+  border-color: var(--color-accent);
+}
+
+/* The label goes amber alongside the control, matching the design system. */
+.field:focus-within .label {
+  color: var(--color-accent);
+}
+
+textarea.control {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.invalid .control,
+.invalid .control:focus {
+  border-color: var(--color-danger);
+}
+
+.invalid:focus-within .label {
+  color: var(--color-danger);
+}
+
+.error {
+  font-size: var(--text-caption-size);
+  line-height: 1.38;
+  color: var(--color-danger);
+}

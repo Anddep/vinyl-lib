@@ -1,0 +1,101 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  border: 1px solid var(--color-border-hairline);
+  color: var(--color-text-secondary);
+  transition:
+    background var(--transition-quick),
+    border-color var(--transition-quick),
+    color var(--transition-quick);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+}
+
+/* ---- Pill shape (genre) ---- */
+
+.pill {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+}
+
+.pill:hover:not(:disabled) {
+  border-color: var(--color-accent-dim);
+  color: var(--color-text-body);
+}
+
+.pill.selected {
+  font-weight: 500;
+  color: var(--color-text-on-accent);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.pill.selected:hover {
+  color: var(--color-text-on-accent);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.pill:disabled {
+  color: var(--color-text-ghost);
+  background: var(--color-bg-raised);
+  border-color: var(--color-border-section);
+}
+
+.pill.hasCount {
+  padding: 8px 10px 8px 16px;
+}
+
+/* ---- Square shape (decade) ---- */
+
+.square {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  background: transparent;
+  border-radius: var(--radius-chip);
+  padding: 7px 12px;
+}
+
+.square:hover:not(:disabled) {
+  border-color: var(--color-accent-dim);
+  color: var(--color-text-body);
+}
+
+.square.selected {
+  color: var(--color-text-body);
+  border-color: var(--color-accent-dim);
+}
+
+.square:disabled {
+  color: var(--color-text-ghost);
+  border-color: var(--color-border-section);
+}
+
+/* ---- Count badge ---- */
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-faint);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-pill);
+  padding: 3px 8px;
+}
+
+.selected .count {
+  color: var(--color-accent-wash);
+  background: var(--overlay-badge);
+}
+
+@media (max-width: 767px) {
+  .chip {
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,92 @@
+.hero {
+  composes: container from '../styles/layout.module.css';
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: var(--space-16);
+  align-items: center;
+  padding-top: var(--space-24);
+  padding-bottom: var(--space-22);
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.eyebrow {
+  composes: eyebrow from '../styles/layout.module.css';
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-leading);
+  letter-spacing: var(--text-display-tracking);
+  color: var(--color-text-primary);
+}
+
+.lede {
+  margin: 0;
+  font-size: var(--text-body-lg-size);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 460px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.media {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.photo {
+  width: 100%;
+}
+
+.disc {
+  position: absolute;
+  left: -56px;
+  bottom: var(--space-12);
+}
+
+@media (max-width: 1199px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+  }
+
+  .media {
+    justify-content: flex-start;
+  }
+
+  /* Nothing sits to the left of the photo once stacked — pull the disc inside
+     the column so it does not hang off the viewport. */
+  .disc {
+    left: -24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .hero {
+    padding-top: var(--space-12);
+    padding-bottom: var(--space-12);
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .disc {
+    left: -16px;
+    bottom: var(--space-6);
+    --disc-size: 104px;
+  }
+}

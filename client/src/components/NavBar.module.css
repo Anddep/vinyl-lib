@@ -1,0 +1,114 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--overlay-nav);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-border-section);
+}
+
+.inner {
+  composes: container from '../styles/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.link {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-quick);
+}
+
+.link:hover {
+  color: var(--color-text-primary);
+}
+
+.link.active {
+  color: var(--color-accent);
+}
+
+/* ---- Mobile ---- */
+
+.toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  background: none;
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-quick);
+}
+
+.toggle:hover {
+  border-color: var(--color-accent-dim);
+}
+
+.toggleBar {
+  display: block;
+  height: 1px;
+  background: var(--color-text-secondary);
+}
+
+.panel {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .toggle {
+    display: flex;
+  }
+
+  .links {
+    display: none;
+  }
+
+  .panel.panelOpen {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--gutter) var(--space-5);
+    border-top: 1px solid var(--color-border-section);
+  }
+
+  .panel .link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .panelCta {
+    margin-top: var(--space-2);
+  }
+}

@@ -1,0 +1,23 @@
+/*
+ * Decorative groove motif. Kept as CSS gradients per the handoff — do not
+ * rasterize; the label hole and groove pitch scale with the element.
+ *
+ * The `size` prop lands on --disc-size-default (inline), while --disc-size is
+ * left for consumers to set from a stylesheet. Inline custom properties beat
+ * class ones in the cascade, so keeping them separate is what lets a media
+ * query shrink the disc without !important.
+ */
+.disc {
+  width: var(--disc-size, var(--disc-size-default));
+  height: var(--disc-size, var(--disc-size-default));
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-hairline);
+  background:
+    radial-gradient(circle, #0b0a09 0 11%, #241f1c 11% 12%, #141312 12% 100%),
+    repeating-radial-gradient(circle, rgba(232, 180, 92, 0.07) 0 2px, transparent 2px 4px);
+  box-shadow: var(--shadow-disc);
+}
+
+.spin {
+  animation: spin 16s linear infinite;
+}
