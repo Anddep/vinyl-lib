@@ -1,0 +1,159 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: transform var(--transition-lift);
+}
+
+.card.compact,
+.card.wishlist {
+  gap: var(--space-3);
+}
+
+/* Lift is CSS-only — no hover state in React, per the handoff. */
+.card.linked:hover,
+.card.linked:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.cover {
+  position: relative;
+}
+
+/* ---- Hover overlays ---- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--motion-lift) var(--ease-out);
+}
+
+.overlayGradient {
+  align-items: flex-end;
+  padding: var(--space-4);
+  background: var(--overlay-gradient);
+}
+
+.overlayFlat {
+  align-items: center;
+  background: var(--overlay-scrim);
+}
+
+.card:hover .overlay,
+.card:focus-visible .overlay {
+  opacity: 1;
+}
+
+.pill {
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  color: var(--color-text-on-accent);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: 9px 16px;
+}
+
+.pillCompact {
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  background: var(--overlay-badge);
+  border-radius: var(--radius-chip);
+  padding: 4px 8px;
+}
+
+/* ---- Wishlist cover: an empty slot rather than a missing image ---- */
+
+.emptyCover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-empty);
+  color: var(--color-border-strong);
+  transition: border-color var(--transition-quick);
+}
+
+.wishlist:hover .emptyCover {
+  border-color: var(--color-accent-dim);
+}
+
+/* ---- Meta ---- */
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.compact .meta,
+.wishlist .meta {
+  gap: var(--space-1);
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+.artist {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.spec {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-faint);
+  margin-top: 3px;
+}
+
+.compact .title {
+  font-size: var(--text-body-size);
+}
+
+.compact .artist {
+  font-size: var(--text-caption-size);
+}
+
+.compact .spec {
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+/* Wishlist text is muted one step — these are records that aren't here yet. */
+.wishlist .title {
+  font-size: var(--text-body-size);
+  color: var(--color-text-muted);
+}
+
+.wishlist .artist {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-faint);
+}
+
+.wishlist .spec {
+  font-size: 10px;
+  color: var(--color-text-ghost);
+  margin-top: 2px;
+}

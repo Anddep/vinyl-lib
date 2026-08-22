@@ -1,0 +1,102 @@
+.section {
+  composes: container from '../styles/layout.module.css';
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  gap: var(--space-18);
+  align-items: start;
+  padding-top: var(--space-24);
+  padding-bottom: var(--space-24);
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.headingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.eyebrow {
+  composes: eyebrow from '../styles/layout.module.css';
+}
+
+.heading {
+  composes: sansHeading from '../styles/layout.module.css';
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 44px 150px 1fr;
+  gap: var(--space-5);
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--color-border-section);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.icon {
+  color: var(--color-accent);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.value {
+  font-size: 16px;
+  color: var(--color-text-body);
+}
+
+@media (max-width: 1199px) {
+  .section {
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+  }
+}
+
+@media (max-width: 767px) {
+  .section {
+    padding-top: var(--space-12);
+    padding-bottom: var(--space-12);
+  }
+
+  /* Icon column drops away; the mono label sits above its value. */
+  .row {
+    grid-template-columns: 26px 1fr;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .label {
+    grid-column: 2;
+  }
+
+  .value {
+    grid-column: 2;
+  }
+}
+
+/* Section keeps its heading on a failed fetch rather than collapsing. */
+.message {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-muted);
+}

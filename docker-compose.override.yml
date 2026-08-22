@@ -23,9 +23,25 @@ services:
       - NODE_ENV=development
       - PORT=${SERVER_PORT}
       - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
     volumes:
       - ./server:/app/server
+      # Listed after the bind mount so the named volume wins for this
+      # subpath — otherwise ./server would shadow uploaded files.
+      - uploads:/app/server/uploads
       - ./package.json:/app/package.json
       - ./package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/server/node_modules
+    ports:
+      # Development only: the host runs the test suite and curl against
+      # these directly. In production nginx is the sole public surface.
+      - '${SERVER_PORT}:${SERVER_PORT}'
+
+  db:
+    ports:
+      - '${POSTGRES_PORT}:5432'
+
+volumes:
+  uploads:

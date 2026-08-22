@@ -1,0 +1,56 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gutter);
+  background: var(--overlay-scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h3-size);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.danger {
+  color: var(--color-text-on-accent);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.danger:hover {
+  color: var(--color-text-on-accent);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  filter: brightness(1.1);
+}

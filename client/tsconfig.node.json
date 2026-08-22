@@ -1,6 +1,12 @@
 {
   "compilerOptions": {
     "composite": true,
+    /*
+     * A composite project must emit, but emitting next to the source drops a
+     * vite.config.js beside vite.config.ts — and Vite resolves .js first, so a
+     * stale copy silently wins over the source. Park the output out of the way.
+     */
+    "outDir": "./node_modules/.tmp/tsconfig.node",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

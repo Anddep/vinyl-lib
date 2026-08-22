@@ -12,7 +12,8 @@
     "prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
     "build": "npm run build -w client && npm run build -w server",
     "lint": "npm run lint -w client && npm run lint -w server",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "npm run test -w client && npm run test -w server"
   },
   "devDependencies": {
     "husky": "^9.1.7",

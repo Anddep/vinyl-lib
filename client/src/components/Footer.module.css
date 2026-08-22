@@ -1,0 +1,110 @@
+.footer {
+  border-top: 1px solid var(--color-border-section);
+}
+
+.inner {
+  composes: container from '../styles/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding-top: var(--space-10);
+  padding-bottom: var(--space-10);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-faint);
+  text-decoration: none;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+.links {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.link {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-muted);
+  transition: color var(--transition-quick);
+}
+
+.link:hover {
+  color: var(--color-text-primary);
+}
+
+.socials {
+  display: flex;
+  gap: 10px;
+}
+
+.social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--transition-quick),
+    color var(--transition-quick);
+}
+
+.social:hover {
+  border-color: var(--color-accent-dim);
+  color: var(--color-accent);
+}
+
+.copyright {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-ghost);
+}
+
+@media (max-width: 1199px) {
+  .inner {
+    flex-wrap: wrap;
+    row-gap: var(--space-5);
+  }
+}
+
+@media (max-width: 767px) {
+  .inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .links {
+    flex-wrap: wrap;
+  }
+
+  /* The design draws these at 32px, which is below the 44px tap target the
+     handoff asks for on touch layouts — grow them here only. */
+  .social {
+    width: 44px;
+    height: 44px;
+  }
+
+  .brand {
+    min-height: 44px;
+  }
+}

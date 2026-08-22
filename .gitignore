@@ -37,3 +37,9 @@ coverage/
 *.tsbuildinfo
 client/vite.config.js
 client/vite.config.d.ts
+
+# Uploaded cover art (lives on a Docker volume in every environment)
+server/uploads/
+
+# Editor / tooling workspace config
+.claude/

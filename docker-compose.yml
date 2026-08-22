@@ -4,6 +4,11 @@ services:
       context: .
       dockerfile: client/Dockerfile
       target: prod
+    environment:
+      # nginx.conf.template interpolates this into proxy_pass. Without it
+      # a base-only `up` renders `http://server:/api/` and nginx refuses
+      # to start on an invalid upstream port.
+      - SERVER_PORT=${SERVER_PORT}
     depends_on:
       - server
     networks:
@@ -18,8 +23,10 @@ services:
       - NODE_ENV=${NODE_ENV}
       - PORT=${SERVER_PORT}
       - DATABASE_URL=${DATABASE_URL}
-    ports:
-      - '${SERVER_PORT}:${SERVER_PORT}'
+      - SESSION_SECRET=${SESSION_SECRET}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+    volumes:
+      - uploads:/app/server/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -32,8 +39,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - '${POSTGRES_PORT}:5432'
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -46,6 +51,7 @@ services:
 
 volumes:
   db-data:
+  uploads:
 
 networks:
   app-network:

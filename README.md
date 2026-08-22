@@ -68,6 +68,106 @@ docker compose exec server npx prisma generate
 
 The starter schema (`server/prisma/schema.prisma`) defines a single `Record` model (a vinyl record: title, artist, year) with an initial migration already committed under `server/prisma/migrations/`.
 
+## Admin panel
+
+The site's content lives in Postgres and is edited at `/admin`. One collector,
+one password — there is no signup and no user table.
+
+### First-time setup
+
+Set the password. This hashes it and writes it into `.env` for you:
+
+```bash
+npm run admin:set-password -w server -- 'your password here'
+```
+
+Then add a session secret:
+
+```bash
+openssl rand -hex 32
+```
+
+```
+SESSION_SECRET=<the hex string>
+```
+
+Restart the server afterwards — the hash is read once at startup:
+
+```bash
+docker compose up -d server
+```
+
+> Use hex rather than base64 for the secret. Docker Compose interpolates `$` in
+> `.env` values, so a `$` in a secret arrives at the container mangled.
+> `admin:set-password` handles this for the hash by doubling the `$`;
+> `admin:hash` only prints a hash, and you must double the `$` yourself.
+
+### Changing the password later
+
+Same command. Note that **existing sessions stay signed in** — they live in a
+`session` table in Postgres, independent of the password. To sign everyone out
+as well:
+
+```bash
+docker compose exec db psql -U vinyl_lib -c "DELETE FROM session;"
+```
+
+### First boot
+
+With the stack running, create the schema:
+
+```bash
+docker compose exec server npx prisma migrate deploy
+```
+
+Then open `http://localhost:5173/admin` and add your collection. There is no
+seed command: sample data only exists as a test fixture, so nothing can write
+over content you have curated.
+
+### What you can edit
+
+| Screen       | Controls                                                                       |
+| ------------ | ------------------------------------------------------------------------------ |
+| Records      | Every field on a record, including the URL its card links to and its cover art |
+| Wishlist     | The Looking For section, with cover art                                        |
+| Setup        | The equipment rows in What it all plays on                                     |
+| Site content | Hero and setup copy and imagery, and Collecting since                          |
+
+Three of the four stat cards are **computed** from the records table — total,
+top genre and top artist — so they cannot drift from the data. "Collecting
+since" is a stored setting: the earliest `addedAt` is when a record was entered
+here, not when the collection started.
+
+Hero and setup copy and imagery are editable under Site content. Leave a field
+empty and the original design wording is used instead.
+
+The genre filter on the homepage is built from the genres actually in the
+collection, so a genre you invent on a record appears as a chip with no code
+change, and one no record uses stops offering an always-empty filter.
+
+Record cards link out to whatever URL you set (Discogs, Bandcamp, anywhere).
+A record with no URL renders as a non-interactive card. Covers can be uploaded
+or pasted as a URL; with neither, the striped placeholder from the design shows.
+
+## Tests
+
+```bash
+npm test              # both workspaces
+npm test -w server    # typecheck + Vitest + Supertest
+npm test -w client    # Vitest + React Testing Library
+```
+
+Server tests need a database of their own:
+
+```bash
+docker compose up -d db
+docker compose exec db createdb -U vinyl_lib vinyl_lib_test
+npm run test:db:setup -w server
+```
+
+`DATABASE_URL_TEST` in `.env` points at it. Tests truncate between cases, so it
+must never be the development database.
+
 ## Project structure
 
 ```

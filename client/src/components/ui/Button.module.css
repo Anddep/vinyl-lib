@@ -1,0 +1,146 @@
+.base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--transition-quick),
+    border-color var(--transition-quick),
+    color var(--transition-quick),
+    transform var(--transition-quick);
+}
+
+.base:disabled,
+.base[aria-disabled='true'] {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---- Variants ---- */
+
+.primary {
+  color: var(--color-text-on-accent);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.primary:hover {
+  color: var(--color-text-on-accent);
+  background: var(--color-accent-lift);
+  border-color: var(--color-accent-lift);
+}
+
+.primary:active {
+  background: var(--color-accent-mid);
+  border-color: var(--color-accent-mid);
+  transform: translateY(1px);
+}
+
+.primary:disabled,
+.primary[aria-disabled='true'] {
+  color: var(--color-text-faint);
+  background: var(--color-border-hairline);
+  border-color: var(--color-border-hairline);
+}
+
+.secondary {
+  color: var(--color-text-body);
+  background: transparent;
+  border-color: var(--color-border-strong);
+}
+
+.secondary:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.secondary:active {
+  color: var(--color-accent);
+  background: var(--color-accent-wash);
+  border-color: var(--color-accent);
+}
+
+.secondary:disabled,
+.secondary[aria-disabled='true'] {
+  color: var(--color-text-ghost);
+  background: transparent;
+  border-color: var(--color-border-hairline);
+}
+
+.ghost {
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-color: transparent;
+}
+
+.ghost:hover {
+  color: var(--color-accent);
+  background: var(--color-bg-inset);
+}
+
+.ghost:active {
+  color: var(--color-accent);
+  background: var(--color-bg-inset);
+  transform: translateY(1px);
+}
+
+.ghost:disabled,
+.ghost[aria-disabled='true'] {
+  color: var(--color-text-ghost);
+  background: transparent;
+}
+
+/* ---- Sizes ----
+ * Bordered variants carry 1px less padding so every size lands on the same
+ * outer height as its primary counterpart.
+ */
+
+.lg {
+  font-size: var(--text-body-size);
+  padding: 14px 24px;
+}
+
+.secondary.lg,
+.ghost.lg {
+  padding: 13px 23px;
+}
+
+.md {
+  font-size: var(--text-body-size);
+  padding: 13px 22px;
+}
+
+.secondary.md,
+.ghost.md {
+  padding: 12px 21px;
+}
+
+.sm {
+  font-size: 14px;
+  padding: 9px 16px;
+}
+
+.secondary.sm,
+.ghost.sm {
+  padding: 8px 15px;
+}
+
+/* The ghost variant has no border, so it sets its own compact rhythm. */
+.ghost.sm {
+  font-size: var(--text-caption-size);
+  padding: 8px 12px;
+}
+
+@media (max-width: 767px) {
+  /* Keep tap targets at 44px minimum on touch layouts. */
+  .base {
+    min-height: 44px;
+  }
+}

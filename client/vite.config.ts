@@ -12,6 +12,12 @@ export default defineConfig({
         target: `http://server:${serverPort}`,
         changeOrigin: true,
       },
+      // Uploaded covers are served from the API container but do not sit
+      // under /api, so they need their own rule.
+      '/uploads': {
+        target: `http://server:${serverPort}`,
+        changeOrigin: true,
+      },
     },
   },
 });
