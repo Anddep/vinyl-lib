@@ -4,7 +4,7 @@ import styles from './NavBar.module.css';
 
 const NAV_LINKS = [
   { href: '#top', label: 'Home', active: true },
-  { href: '#featured', label: 'Collection', active: false },
+  { href: '#collection', label: 'Collection', active: false },
   { href: '#setup', label: 'Setup', active: false },
 ];
 

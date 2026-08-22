@@ -4,7 +4,7 @@ import { prisma, resetDb } from './helpers/db';
 beforeEach(resetDb);
 
 describe('Record model', () => {
-  it('stores the full field set and defaults featured to false', async () => {
+  it('stores the full field set with sensible defaults', async () => {
     const record = await prisma.record.create({
       data: {
         slug: 'bitches-brew',
@@ -18,7 +18,6 @@ describe('Record model', () => {
       },
     });
 
-    expect(record.featured).toBe(false);
     expect(record.position).toBe(0);
     expect(record.coverUrl).toBeNull();
   });

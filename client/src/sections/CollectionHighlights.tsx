@@ -29,7 +29,7 @@ export function CollectionHighlights({
 
   return (
     <>
-      <section className={styles.section} id="featured">
+      <section className={styles.section} id="collection">
         <div className={styles.inner}>
           <div className={styles.headerRow}>
             <h2 className={styles.heading}>Collection Highlights</h2>
@@ -66,7 +66,7 @@ export function CollectionHighlights({
         </div>
       </section>
 
-      <section className={styles.gridSection} aria-label="Featured records">
+      <section className={styles.gridSection} aria-label="The collection">
         {error ? (
           <p className={styles.empty}>Could not load the collection just now.</p>
         ) : visibleRecords.length > 0 ? (

@@ -18,7 +18,6 @@ interface FormState {
   position: string;
   addedAt: string;
   coverUrl: string | null;
-  featured: boolean;
 }
 
 const EMPTY: FormState = {
@@ -32,7 +31,6 @@ const EMPTY: FormState = {
   position: '0',
   addedAt: '',
   coverUrl: null,
-  featured: false,
 };
 
 /** Everything is a string in the DOM; the API wants real types. */
@@ -43,7 +41,6 @@ function toPayload(form: FormState): Record<string, unknown> {
     year: Number(form.year),
     format: form.format,
     genre: form.genre,
-    featured: form.featured,
     position: Number(form.position) || 0,
     coverUrl: form.coverUrl,
   };
@@ -92,7 +89,6 @@ export default function RecordFormPage(): JSX.Element {
           position: String(record.position ?? 0),
           addedAt: record.addedAt ? record.addedAt.slice(0, 10) : '',
           coverUrl: record.coverUrl ?? null,
-          featured: record.featured ?? false,
         });
       })
       .catch(() => setFormError('Could not load that record.'));
@@ -220,14 +216,6 @@ export default function RecordFormPage(): JSX.Element {
             onChange={(v) => set('addedAt', v)}
             error={fieldErrors.addedAt}
           />
-          <label className={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={form.featured}
-              onChange={(e) => set('featured', e.target.checked)}
-            />
-            Show in Collection Highlights
-          </label>
         </div>
 
         {formError && (

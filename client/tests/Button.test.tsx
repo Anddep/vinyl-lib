@@ -4,10 +4,10 @@ import { Button } from '../src/components/ui/Button';
 
 describe('Button', () => {
   it('renders a link when given an href, so anchor navigation keeps link semantics', () => {
-    render(<Button href="#featured">Browse Collection</Button>);
+    render(<Button href="#collection">Browse Collection</Button>);
 
     const link = screen.getByRole('link', { name: 'Browse Collection' });
-    expect(link).toHaveAttribute('href', '#featured');
+    expect(link).toHaveAttribute('href', '#collection');
     expect(screen.queryByRole('button')).toBeNull();
   });
 

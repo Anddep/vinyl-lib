@@ -12,7 +12,6 @@ export default function RecordsListPage(): JSX.Element {
   const [records, setRecords] = useState<VinylRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<VinylRecord | null>(null);
 
   const refresh = useCallback(() => {
@@ -25,13 +24,12 @@ export default function RecordsListPage(): JSX.Element {
 
   // Derived during render — a stored filtered list would drift from `records`.
   const term = search.trim().toLowerCase();
-  const visible = records.filter((record) => {
-    const matchesTerm =
+  const visible = records.filter(
+    (record) =>
       term.length === 0 ||
       record.title.toLowerCase().includes(term) ||
-      record.artist.toLowerCase().includes(term);
-    return matchesTerm && (!featuredOnly || record.featured === true);
-  });
+      record.artist.toLowerCase().includes(term),
+  );
 
   async function confirmDelete(): Promise<void> {
     if (!pendingDelete) {
@@ -63,12 +61,7 @@ export default function RecordsListPage(): JSX.Element {
     {
       key: 'title',
       header: 'Title',
-      render: (record) => (
-        <>
-          <span className={styles.title}>{record.title}</span>
-          {record.featured && <span className={styles.badge}>Featured</span>}
-        </>
-      ),
+      render: (record) => <span className={styles.title}>{record.title}</span>,
     },
     { key: 'artist', header: 'Artist', render: (record) => record.artist },
     { key: 'year', header: 'Year', render: (record) => record.year },
@@ -97,14 +90,6 @@ export default function RecordsListPage(): JSX.Element {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={featuredOnly}
-            onChange={(event) => setFeaturedOnly(event.target.checked)}
-          />
-          Featured only
-        </label>
       </div>
 
       {error && <p className={styles.message}>{error}</p>}

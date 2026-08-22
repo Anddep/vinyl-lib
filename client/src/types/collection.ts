@@ -19,7 +19,6 @@ export interface VinylRecord {
   url?: string | null;
   /** Uploaded path (/uploads/…) or an external image URL. */
   coverUrl?: string | null;
-  featured?: boolean;
   position?: number;
   /** ISO date string. */
   addedAt?: string;

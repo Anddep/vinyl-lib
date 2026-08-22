@@ -17,14 +17,13 @@ model Record {
   genre     String
   url       String?
   coverUrl  String?
-  featured  Boolean  @default(false)
   position  Int      @default(0)
   addedAt   DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([addedAt])
-  @@index([featured, position])
+  @@index([position])
 }
 
 model WishlistItem {

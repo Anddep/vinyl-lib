@@ -12,7 +12,6 @@ export const recordCreateSchema = z.object({
   slug: z.string().trim().min(1).optional(),
   url: safeUrl.nullish(),
   coverUrl: imageSource.nullish(),
-  featured: z.boolean().optional(),
   position: z.number().int().min(0).optional(),
   addedAt: z.coerce.date().optional(),
 });

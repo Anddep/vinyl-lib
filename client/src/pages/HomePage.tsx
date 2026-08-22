@@ -1,5 +1,5 @@
 import {
-  getFeaturedRecords,
+  getRecords,
   getGenres,
   getRecentRecords,
   getSettings,
@@ -26,7 +26,7 @@ interface HomePageProps {
 export function HomePage({ showSetup = true, showWishlist = true }: HomePageProps): JSX.Element {
   // One fetch per section rather than one aggregate call: a slow or failing
   // endpoint then degrades only its own band.
-  const featured = useResource(getFeaturedRecords);
+  const allRecords = useResource(getRecords);
   const recent = useResource(getRecentRecords);
   const stats = useResource(getStats);
   const genres = useResource(getGenres);
@@ -41,10 +41,10 @@ export function HomePage({ showSetup = true, showWishlist = true }: HomePageProp
         <Hero stats={stats.data} settings={settings.data} />
         <QuickStats stats={stats.data} />
         <CollectionHighlights
-          records={featured.data ?? []}
+          records={allRecords.data ?? []}
           genres={genres.data ?? []}
           total={stats.data?.totalRecords ?? 0}
-          error={featured.error}
+          error={allRecords.error}
         />
         <RecentlyAdded
           records={recent.data ?? []}
