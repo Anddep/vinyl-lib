@@ -28,7 +28,21 @@ services:
       - PORT=${SERVER_PORT}
       - DATABASE_URL=${DATABASE_URL}
       - SESSION_SECRET=${SESSION_SECRET}
-      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      # Compose replaces the base list rather than merging it, so every variable
+      # the server reads has to be repeated here as well.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - BOOTSTRAP_OWNER_EMAIL=${BOOTSTRAP_OWNER_EMAIL}
+      - SIGNUP_MODE=${SIGNUP_MODE}
+      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES}
+      - UPLOAD_QUOTA_BYTES=${UPLOAD_QUOTA_BYTES}
+      - MAX_RECORDS_PER_USER=${MAX_RECORDS_PER_USER}
+      - MAX_WISHLIST_PER_USER=${MAX_WISHLIST_PER_USER}
+      - MAX_SETUP_PER_USER=${MAX_SETUP_PER_USER}
+      - MAX_SIGNUPS_PER_HOUR=${MAX_SIGNUPS_PER_HOUR}
     volumes:
       - ./server:/app/server
       # Listed after the bind mount so the named volume wins for this

@@ -49,15 +49,18 @@ Create the database tables:
 docker compose exec server npx prisma migrate deploy
 ```
 
-Then set an admin password and restart the server so it picks it up:
-
-```bash
-npm run admin:set-password -w server -- 'your password'
-```
+Then register at least one OAuth app and put its credentials in `.env` — the
+server refuses to start without one, since nobody could sign in. Set
+`BOOTSTRAP_OWNER_EMAIL` to your own address at the same time, so the first
+sign-in claims the existing collection rather than starting an empty one.
+[README: Accounts](README.md#accounts) has the click-path for both providers.
 
 ```bash
 docker compose up -d server
 ```
+
+`up -d`, not `restart`: Compose only re-reads `.env` when it recreates the
+container.
 
 There is no sample data. Open `/admin` and add your own.
 
@@ -101,22 +104,16 @@ docker compose up -d --build -V server
 Without it the container keeps the old dependency set and crashes with
 "Cannot find module".
 
-### Change the admin password
+### Sign everyone out
 
-```bash
-npm run admin:set-password -w server -- 'new password'
-```
-
-```bash
-docker compose up -d server
-```
-
-Anyone already signed in **stays** signed in — sessions are independent of the
-password. To sign everyone out too:
+Sessions live in Postgres, so revoking them is a delete:
 
 ```bash
 docker compose exec db psql -U vinyl_lib -c "DELETE FROM session;"
 ```
+
+To sign out one account rather than all of them, and stop them signing back
+in, see the operator recipes in [README: Accounts](README.md#accounts).
 
 ### Run the tests
 
@@ -175,17 +172,31 @@ The migration ran but the container's Prisma client is stale:
 docker compose up -d server
 ```
 
-### Login says "Invalid credentials" and you are sure the password is right
+### The server exits with "No OAuth provider configured"
 
-The hash in `.env` did not reach the container. Check it arrived intact:
+Neither provider pair reached the container. `docker-compose.yml` whitelists
+which variables are passed through, so a value in `.env` that is not listed
+there never arrives — and the dev override replaces that list rather than
+extending it, so both files need the variable.
 
 ```bash
-docker compose exec server printenv ADMIN_PASSWORD_HASH
+docker compose exec server printenv GOOGLE_CLIENT_ID GITHUB_CLIENT_ID
 ```
 
-It should be exactly 60 characters starting `$2b$12$`. If it is empty or
-mangled, set it again with `admin:set-password`, which handles the escaping
-Compose needs.
+Empty means either the credentials are not in `.env` or the variable is missing
+from the compose `environment:` list. Note that `docker compose restart` reuses
+the old container environment — use `docker compose up -d server` after editing
+`.env`.
+
+### Sign-in bounces back to the landing page with `?error=state`
+
+The session carrying the OAuth handshake did not survive the round trip. The
+cookie is `SameSite=Lax` precisely so it does; if you have changed it to
+`Strict`, the provider's redirect arrives without it and validation fails every
+time.
+
+`?error=provider` instead means the token exchange failed — usually a callback
+URL registered at the provider that does not match `PUBLIC_BASE_URL` exactly.
 
 ### Port already in use
 
