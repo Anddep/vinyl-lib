@@ -36,3 +36,16 @@ process.env.SIGNUP_MODE = 'open';
 // should not leave files in the source tree, and the container writes there
 // under a different user.
 process.env.UPLOAD_DIR = path.join(tmpdir(), 'vinyl-lib-test-uploads');
+
+/**
+ * No test may reach the network.
+ *
+ * The OAuth helper swaps this out for a stub of the provider endpoints and puts
+ * it back afterwards. Anything else calling fetch is a test that would depend on
+ * the internet — and, worse, one whose failure surfaces as whatever the sandbox
+ * or a proxy happened to answer rather than as a named problem. Fail loudly at
+ * the call site instead.
+ */
+globalThis.fetch = (async (input: unknown) => {
+  throw new Error(`Unexpected network call in test: ${String(input)}`);
+}) as unknown as typeof globalThis.fetch;

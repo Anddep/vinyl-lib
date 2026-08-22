@@ -37,37 +37,41 @@ function json(body: unknown): Response {
  * must never ship enabled.
  */
 function stubProviderFetch(profile: StubProfile): () => void {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string) => {
-      if (url.includes('/token') || url.includes('/access_token')) {
-        return json({ access_token: 'stub-token' });
-      }
-      if (url.startsWith('https://openidconnect.googleapis.com')) {
-        return json({
-          sub: profile.providerUserId,
-          email: profile.email,
-          email_verified: profile.emailVerified,
-          name: profile.displayName,
-          picture: profile.avatarUrl,
-        });
-      }
-      if (url === 'https://api.github.com/user') {
-        return json({
-          id: profile.providerUserId,
-          login: profile.displayName,
-          name: profile.displayName,
-          avatar_url: profile.avatarUrl,
-        });
-      }
-      if (url === 'https://api.github.com/user/emails') {
-        return json([{ email: profile.email, primary: true, verified: profile.emailVerified }]);
-      }
-      throw new Error(`Unexpected fetch in test: ${url}`);
-    }),
-  );
+  // Captured and put back by hand rather than through vi.unstubAllGlobals():
+  // that would drop every global a test had stubbed, not just this fetch, and
+  // this helper is called from the middle of other people's tests.
+  const original = globalThis.fetch;
 
-  return () => vi.unstubAllGlobals();
+  globalThis.fetch = vi.fn(async (url: string) => {
+    if (url.includes('/token') || url.includes('/access_token')) {
+      return json({ access_token: 'stub-token' });
+    }
+    if (url.startsWith('https://openidconnect.googleapis.com')) {
+      return json({
+        sub: profile.providerUserId,
+        email: profile.email,
+        email_verified: profile.emailVerified,
+        name: profile.displayName,
+        picture: profile.avatarUrl,
+      });
+    }
+    if (url === 'https://api.github.com/user') {
+      return json({
+        id: profile.providerUserId,
+        login: profile.displayName,
+        name: profile.displayName,
+        avatar_url: profile.avatarUrl,
+      });
+    }
+    if (url === 'https://api.github.com/user/emails') {
+      return json([{ email: profile.email, primary: true, verified: profile.emailVerified }]);
+    }
+    throw new Error(`Unexpected fetch in test: ${url}`);
+  }) as unknown as typeof globalThis.fetch;
+
+  return () => {
+    globalThis.fetch = original;
+  };
 }
 
 /**
@@ -98,7 +102,12 @@ export async function signInAgent(overrides: Partial<StubProfile> = {}) {
 
   const location = String(response.headers.location);
   if (response.status !== 302 || location.startsWith('/?error=')) {
-    throw new Error(`Sign-in failed: ${location}`);
+    // Status and body as well as the location: a failure here is either a
+    // redirect to an error code or something that did not redirect at all, and
+    // the two need very different investigation.
+    throw new Error(
+      `Sign-in failed: status ${response.status}, location ${location}, body ${JSON.stringify(response.body)}`,
+    );
   }
 
   const user = await prisma.user.findUniqueOrThrow({
