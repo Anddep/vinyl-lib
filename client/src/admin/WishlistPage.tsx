@@ -1,9 +1,5 @@
-import {
-  createWishlistItem,
-  deleteWishlistItem,
-  getWishlist,
-  updateWishlistItem,
-} from '../api/client';
+import { createWishlistItem, deleteWishlistItem, updateWishlistItem } from '../api/client';
+import { ownCollection } from '../api/own';
 import type { WishlistItem } from '../types/collection';
 import { ResourceScreen, type FieldDef } from './components/ResourceScreen';
 import type { Column } from './components/DataTable';
@@ -41,7 +37,7 @@ export default function WishlistPage(): JSX.Element {
       noun="wishlist item"
       fields={fields}
       columns={columns}
-      load={getWishlist}
+      load={ownCollection.getWishlist}
       create={createWishlistItem}
       update={updateWishlistItem}
       remove={deleteWishlistItem}

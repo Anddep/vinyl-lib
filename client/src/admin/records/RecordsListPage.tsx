@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteRecord, getRecords } from '../../api/client';
+import { deleteRecord } from '../../api/client';
+import { ownCollection } from '../../api/own';
 import { Button } from '../../components/ui/Button';
 import type { VinylRecord } from '../../types/collection';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -10,7 +11,7 @@ import styles from './RecordsListPage.module.css';
 
 export default function RecordsListPage(): JSX.Element {
   const navigate = useNavigate();
-  const { data, error: loadError, refresh } = useResource(getRecords);
+  const { data, error: loadError, refresh } = useResource(ownCollection.getRecords);
   const records = data ?? [];
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [search, setSearch] = useState('');

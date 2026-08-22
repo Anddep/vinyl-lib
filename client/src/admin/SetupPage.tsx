@@ -1,4 +1,5 @@
-import { createSetupItem, deleteSetupItem, getSetup, updateSetupItem } from '../api/client';
+import { createSetupItem, deleteSetupItem, updateSetupItem } from '../api/client';
+import { ownCollection } from '../api/own';
 import type { SetupItem } from '../types/collection';
 import { ResourceScreen, type FieldDef } from './components/ResourceScreen';
 import type { Column } from './components/DataTable';
@@ -34,7 +35,7 @@ export default function SetupPage(): JSX.Element {
       noun="setup row"
       fields={fields}
       columns={columns}
-      load={getSetup}
+      load={ownCollection.getSetup}
       create={createSetupItem}
       update={updateSetupItem}
       remove={deleteSetupItem}
