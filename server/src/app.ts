@@ -5,6 +5,7 @@ import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { env } from './config/env';
 import { healthRouter } from './routes/health';
+import { accountRouter } from './routes/account';
 import { authRouter } from './routes/auth';
 import { recordsRouters } from './routes/records';
 import { statsRouters } from './routes/stats';
@@ -66,6 +67,7 @@ if (env.NODE_ENV !== 'test') {
 
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
+app.use('/api', accountRouter);
 
 // Someone else's collection, by slug. Read-only: the write routes live on the
 // own tree, where the owner comes from the session rather than the URL.
