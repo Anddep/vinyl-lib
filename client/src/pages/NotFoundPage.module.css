@@ -1,0 +1,35 @@
+.screen {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  min-height: 100vh;
+  padding: var(--gutter);
+  color: var(--color-accent);
+  text-align: center;
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2-size);
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.lede {
+  margin: 0;
+  font-size: var(--text-body-size);
+  color: var(--color-text-secondary);
+}
+
+.home {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--transition-quick);
+}
+
+.home:hover {
+  color: var(--color-accent);
+}
