@@ -29,6 +29,9 @@ npm install   # sets up local tooling: workspace deps, ESLint/Prettier, Husky ho
 
 Adjust `.env` if you need different ports or credentials — every value the stack uses comes from that file.
 
+> Day-to-day commands, troubleshooting and backups live in
+> **[RUNNING.md](RUNNING.md)**.
+
 ### Run in dev mode (hot reload)
 
 ```bash
