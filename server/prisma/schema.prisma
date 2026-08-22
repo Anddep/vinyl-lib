@@ -7,9 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  displayName String
+  /// Verified address from the OAuth provider; the key identities link on.
+  /// Null only on the unclaimed bootstrap row.
+  email       String?   @unique
+  avatarUrl   String?
+  isPublic    Boolean   @default(true)
+  /// Set by the operator through psql. Blocks sign-in and hides the collection.
+  suspendedAt DateTime?
+  /// True on the single row the backfill migration creates, and only there.
+  bootstrap   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  identities    OAuthIdentity[]
+  records       Record[]
+  wishlist      WishlistItem[]
+  setup         SetupItem[]
+  settings      SiteSetting[]
+  uploads       Upload[]
+  invitesIssued Invite[]        @relation("InviteIssuer")
+  invite        Invite?         @relation("InviteRedeemer")
+}
+
+model OAuthIdentity {
+  id             Int      @id @default(autoincrement())
+  provider       String
+  /// The provider's immutable subject id — never the email, which can change.
+  providerUserId String
+  userId         Int
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+model Invite {
+  id           Int       @id @default(autoincrement())
+  /// 16 random bytes, base64url. The code is the whole credential.
+  code         String    @unique
+  issuedById   Int?
+  /// Unique, so the database — not the callback — enforces single use.
+  redeemedById Int?      @unique
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  redeemedAt   DateTime?
+
+  issuedBy   User? @relation("InviteIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  redeemedBy User? @relation("InviteRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
+}
+
+model Upload {
+  id Int @id @default(autoincrement())
+
+  ownerId   Int
+  /// Path relative to UPLOAD_DIR, e.g. "12/9f3c….webp".
+  path      String   @unique
+  bytes     Int
+  createdAt DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
 model Record {
   id        Int      @id @default(autoincrement())
-  slug      String   @unique
+  ownerId   Int
+  slug      String
   title     String
   artist    String
   year      Int
@@ -22,12 +92,19 @@ model Record {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([addedAt])
-  @@index([position])
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Per owner, so two collectors can both hold "kind-of-blue".
+  @@unique([ownerId, slug])
+  // Owner-leading: after this change no query touches these columns without
+  // also filtering on the owner.
+  @@index([ownerId, addedAt])
+  @@index([ownerId, position])
 }
 
 model WishlistItem {
   id        Int      @id @default(autoincrement())
+  ownerId   Int
   title     String
   artist    String
   url       String?
@@ -35,21 +112,35 @@ model WishlistItem {
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, position])
 }
 
 model SetupItem {
   id        Int      @id @default(autoincrement())
+  ownerId   Int
   icon      String
   label     String
   value     String
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, position])
 }
 
 model SiteSetting {
-  key   String @id
-  value String
+  ownerId Int
+  key     String
+  value   String
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, key])
 }
 
 /// Owned by connect-pg-simple, not by application code — nothing here queries
