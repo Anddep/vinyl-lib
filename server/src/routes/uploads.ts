@@ -6,6 +6,7 @@ import multer from 'multer';
 import { limits } from '../config/env';
 import { asyncHandler } from '../lib/asyncHandler';
 import { sniffImageType } from '../lib/imageType';
+import { uploadLimiter } from '../lib/limiters';
 import { ownerOf } from '../lib/owner';
 import { requireUser } from '../middleware/requireUser';
 import { prisma } from '../prisma/client';
@@ -30,6 +31,7 @@ const upload = multer({
 
 uploadsRouter.post(
   '/uploads',
+  uploadLimiter(),
   requireUser,
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {

@@ -1,10 +1,11 @@
 import { Prisma } from '@prisma/client';
-import { bootstrapOwnerEmail, signupMode } from '../config/env';
+import { bootstrapOwnerEmail, maxSignupsPerHour, signupMode } from '../config/env';
 import { prisma } from '../prisma/client';
 import type { OAuthProfile, ProviderId } from './oauth/providers';
 import { freeUserSlug } from './userSlug';
 
-export type SignInFailure = 'email_unverified' | 'suspended' | 'signup_closed' | 'invite_required';
+export type SignInFailure =
+  'email_unverified' | 'suspended' | 'signup_closed' | 'invite_required' | 'signup_throttled';
 
 export type SignInResult = { ok: true; userId: number } | { ok: false; reason: SignInFailure };
 
@@ -86,6 +87,13 @@ async function attempt(
     const mode = signupMode();
     if (mode === 'closed') {
       return { ok: false, reason: 'signup_closed' };
+    }
+
+    // Everything above this line resolves to an existing account, so a
+    // returning collector is never throttled — only genuinely new ones are.
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    if ((await tx.user.count({ where: { createdAt: { gte: hourAgo } } })) >= maxSignupsPerHour()) {
+      return { ok: false, reason: 'signup_throttled' };
     }
 
     let inviteId: number | null = null;

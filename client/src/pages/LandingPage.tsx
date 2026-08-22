@@ -15,6 +15,7 @@ const MESSAGES: Record<string, string> = {
   suspended: 'This account has been suspended.',
   signup_closed: 'New accounts are closed at the moment.',
   invite_required: 'New accounts are invite only right now. You need an invite link to join.',
+  signup_throttled: 'Too many new accounts just now. Try again in an hour.',
 };
 
 const LABELS: Record<string, string> = {

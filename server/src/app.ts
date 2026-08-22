@@ -12,6 +12,7 @@ import { statsRouters } from './routes/stats';
 import { wishlistRouters } from './routes/wishlist';
 import { setupRouters } from './routes/setup';
 import { settingsRouters } from './routes/settings';
+import { publicReadLimiter, writeLimiter } from './lib/limiters';
 import { publicCollectionRouter } from './routes/publicCollection';
 import { sameOrigin } from './middleware/sameOrigin';
 import { UPLOAD_DIR, uploadsRouter } from './routes/uploads';
@@ -71,7 +72,13 @@ app.use('/api', accountRouter);
 
 // Someone else's collection, by slug. Read-only: the write routes live on the
 // own tree, where the owner comes from the session rather than the URL.
-app.use('/api/u/:slug', publicCollectionRouter);
+app.use('/api/u/:slug', publicReadLimiter(), publicCollectionRouter);
+
+// Non-GET only: a limiter on reads would punish the admin screens, which fetch
+// several endpoints per page load. One instance at module scope, so the store
+// persists across requests rather than starting fresh each time.
+const writes = writeLimiter();
+app.use('/api', (req, res, next) => (req.method === 'GET' ? next() : writes(req, res, next)));
 
 // The signed-in user's own collection. Every route inside carries requireUser
 // individually, so an unknown /api path still reaches the 404 handler below

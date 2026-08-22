@@ -4,6 +4,7 @@ import { resolveSignIn } from '../lib/accounts';
 import { authorizeUrl, exchangeCode } from '../lib/oauth/flow';
 import { challengeFor, randomToken } from '../lib/oauth/pkce';
 import { configuredProviders, getProvider } from '../lib/oauth/providers';
+import { oauthCallbackLimiter, oauthStartLimiter } from '../lib/limiters';
 import { prisma } from '../prisma/client';
 
 export const authRouter = Router();
@@ -60,6 +61,7 @@ authRouter.get(
 
 authRouter.get(
   '/auth/:provider',
+  oauthStartLimiter(),
   asyncHandler(async (req: Request, res: Response) => {
     const provider = getProvider(req.params.provider);
     if (!provider) {
@@ -92,6 +94,7 @@ authRouter.get(
 
 authRouter.get(
   '/auth/:provider/callback',
+  oauthCallbackLimiter(),
   asyncHandler(async (req: Request, res: Response) => {
     const handshake = req.session.oauth ?? null;
     // Consumed before anything can fail, so a replay finds nothing. Single use,

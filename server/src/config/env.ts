@@ -103,6 +103,19 @@ export function bootstrapOwnerEmail(): string | null {
   return optional('BOOTSTRAP_OWNER_EMAIL')?.toLowerCase() ?? null;
 }
 
+/**
+ * Site-wide, not per IP.
+ *
+ * Counting signups per address would mean storing one against a sign-in
+ * decision, and express-rate-limit counts requests rather than outcomes, so an
+ * ordinary returning sign-in would eat the allowance. The trade is that a flood
+ * pauses signups for everyone rather than for one attacker, which is acceptable
+ * while SIGNUP_MODE=invite is the primary gate.
+ */
+export function maxSignupsPerHour(): number {
+  return parseCount(process.env.MAX_SIGNUPS_PER_HOUR, 20);
+}
+
 export function limits(): Limits {
   return {
     maxUploadBytes: parseCount(process.env.MAX_UPLOAD_BYTES, 5 * 1024 * 1024),

@@ -275,3 +275,39 @@ describe('the signup gate', () => {
     });
   });
 });
+
+describe('the signup throttle', () => {
+  it('refuses a new account once the hourly ceiling is reached', async () => {
+    vi.stubEnv('SIGNUP_MODE', 'open');
+    vi.stubEnv('MAX_SIGNUPS_PER_HOUR', '1');
+
+    expect((await resolveSignIn('google', profile(), null)).ok).toBe(true);
+    expect(
+      await resolveSignIn(
+        'github',
+        profile({ providerUserId: 'gh-9', email: 'two@example.com' }),
+        null,
+      ),
+    ).toEqual({ ok: false, reason: 'signup_throttled' });
+  });
+
+  it('does not count accounts created more than an hour ago', async () => {
+    vi.stubEnv('SIGNUP_MODE', 'open');
+    vi.stubEnv('MAX_SIGNUPS_PER_HOUR', '1');
+    const old = await createUser(prisma, { slug: 'old-user', email: 'old@example.com' });
+    await prisma.user.update({
+      where: { id: old.id },
+      data: { createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+    });
+
+    expect((await resolveSignIn('google', profile(), null)).ok).toBe(true);
+  });
+
+  it('never throttles an existing user signing back in', async () => {
+    vi.stubEnv('SIGNUP_MODE', 'open');
+    const first = await resolveSignIn('google', profile(), null);
+
+    vi.stubEnv('MAX_SIGNUPS_PER_HOUR', '1');
+    expect(await resolveSignIn('google', profile(), null)).toEqual(first);
+  });
+});
