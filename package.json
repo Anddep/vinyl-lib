@@ -37,5 +37,8 @@
     "@prisma/engines@5.22.0": true,
     "esbuild@0.21.5": true,
     "prisma@5.22.0": true
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

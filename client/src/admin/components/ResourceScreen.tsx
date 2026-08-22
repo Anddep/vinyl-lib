@@ -204,6 +204,7 @@ export function ResourceScreen<T extends { id: number }>({
                 <ImageField
                   key={field.key}
                   label={field.label}
+                  className={styles.fullWidth}
                   value={String(values[field.key] ?? '') || null}
                   onChange={(next) => setValues((c) => ({ ...c, [field.key]: next ?? '' }))}
                 />

@@ -41,6 +41,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-4);
+  align-items: start;
+}
+
+/*
+ * An image field needs the whole row: a preview plus a file input does not
+ * fit a 220px column, and squeezing it there pushed the control past the
+ * panel edge.
+ */
+.fullWidth {
+  grid-column: 1 / -1;
 }
 
 .field {

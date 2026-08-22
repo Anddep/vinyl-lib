@@ -8,6 +8,7 @@ interface ImageFieldProps {
   label: string;
   value: string | null;
   onChange: (next: string | null) => void;
+  className?: string;
 }
 
 /**
@@ -17,7 +18,7 @@ interface ImageFieldProps {
  * /uploads/ path or an external URL — so the mode toggle is purely how the
  * value gets there.
  */
-export function ImageField({ label, value, onChange }: ImageFieldProps): JSX.Element {
+export function ImageField({ label, value, onChange, className }: ImageFieldProps): JSX.Element {
   const groupId = useId();
   const urlId = `${groupId}-url`;
   const fileId = `${groupId}-file`;
@@ -49,7 +50,11 @@ export function ImageField({ label, value, onChange }: ImageFieldProps): JSX.Ele
   }
 
   return (
-    <div className={styles.field} role="group" aria-labelledby={groupId}>
+    <div
+      className={[styles.field, className].filter(Boolean).join(' ')}
+      role="group"
+      aria-labelledby={groupId}
+    >
       <span className={styles.label} id={groupId}>
         {label}
       </span>
@@ -105,7 +110,7 @@ export function ImageField({ label, value, onChange }: ImageFieldProps): JSX.Ele
               </label>
               <input
                 id={fileId}
-                className={styles.input}
+                className={styles.fileInput}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/avif"
                 onChange={handleFile}
