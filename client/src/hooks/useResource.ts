@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ResourceState<T> {
   data: T | null;
@@ -6,24 +6,43 @@ interface ResourceState<T> {
   loading: boolean;
 }
 
+export interface Resource<T> extends ResourceState<T> {
+  /** Refetch, keeping the current data on screen until the new data lands. */
+  refresh: () => void;
+}
+
 /**
- * Fetch once on mount.
+ * Fetch on mount, and again whenever `refresh()` is called.
  *
- * The `cancelled` flag stops a late response from setting state after unmount,
- * which under StrictMode's double-invoke would otherwise let the first render's
- * response land on top of the second's.
+ * The fetcher is held in a ref so that passing an inline closure cannot send
+ * the effect into a refetch loop. The ref is synced inside an effect rather
+ * than during render: React's docs are explicit that writing `ref.current`
+ * while rendering breaks purity expectations.
+ *
+ * `loading` only covers the first load. A refresh after a mutation leaves the
+ * existing rows on screen rather than flashing the table back to empty.
  */
-export function useResource<T>(fetcher: () => Promise<T>): ResourceState<T> {
+export function useResource<T>(fetcher: () => Promise<T>): Resource<T> {
   const [state, setState] = useState<ResourceState<T>>({
     data: null,
     error: null,
     loading: true,
   });
+  const [reloadCount, setReloadCount] = useState(0);
+
+  const fetcherRef = useRef(fetcher);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   useEffect(() => {
+    // Stops a late response from setting state after unmount, and — under
+    // StrictMode's double-invoke — from letting the first render's response
+    // land on top of the second's.
     let cancelled = false;
 
-    fetcher()
+    fetcherRef
+      .current()
       .then((data) => {
         if (!cancelled) {
           setState({ data, error: null, loading: false });
@@ -42,10 +61,9 @@ export function useResource<T>(fetcher: () => Promise<T>): ResourceState<T> {
     return () => {
       cancelled = true;
     };
-    // The fetcher is a module-level function per call site; re-running on
-    // identity change would refetch on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reloadCount]);
 
-  return state;
+  const refresh = useCallback(() => setReloadCount((count) => count + 1), []);
+
+  return { ...state, refresh };
 }

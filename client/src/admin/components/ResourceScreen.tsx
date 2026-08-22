@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ApiError } from '../../api/client';
+import { useResource } from '../../hooks/useResource';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ImageField } from './ImageField';
@@ -58,21 +59,14 @@ export function ResourceScreen<T extends { id: number }>({
   toForm,
   describe,
 }: ResourceScreenProps<T>): JSX.Element {
-  const [rows, setRows] = useState<T[]>([]);
+  const { data, error: loadError, refresh } = useResource(load);
+  const rows = data ?? [];
   const [values, setValues] = useState<FormValues>(() => emptyValues(fields));
   const [editingId, setEditingId] = useState<number | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
-
-  const refresh = useCallback(() => {
-    load()
-      .then(setRows)
-      .catch(() => setMessage(`Could not load ${title.toLowerCase()}.`));
-  }, [load, title]);
-
-  useEffect(refresh, [refresh]);
 
   function reset(): void {
     setValues(emptyValues(fields));
@@ -155,7 +149,9 @@ export function ResourceScreen<T extends { id: number }>({
         {description && <p className={styles.sub}>{description}</p>}
       </div>
 
-      {message && <p className={styles.message}>{message}</p>}
+      {(message ?? (loadError ? `Could not load ${title.toLowerCase()}.` : null)) && (
+        <p className={styles.message}>{message ?? `Could not load ${title.toLowerCase()}.`}</p>
+      )}
 
       <DataTable
         columns={columns}

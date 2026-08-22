@@ -1,26 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deleteRecord, getRecords } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import type { VinylRecord } from '../../types/collection';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type Column } from '../components/DataTable';
+import { useResource } from '../../hooks/useResource';
 import styles from './RecordsListPage.module.css';
 
 export default function RecordsListPage(): JSX.Element {
   const navigate = useNavigate();
-  const [records, setRecords] = useState<VinylRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error: loadError, refresh } = useResource(getRecords);
+  const records = data ?? [];
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<VinylRecord | null>(null);
 
-  const refresh = useCallback(() => {
-    getRecords()
-      .then(setRecords)
-      .catch(() => setError('Could not load records.'));
-  }, []);
-
-  useEffect(refresh, [refresh]);
+  const error = deleteError ?? (loadError ? 'Could not load records.' : null);
 
   // Derived during render — a stored filtered list would drift from `records`.
   const term = search.trim().toLowerCase();
@@ -41,7 +37,7 @@ export default function RecordsListPage(): JSX.Element {
       // refetch cannot drift from the server.
       refresh();
     } catch {
-      setError('Could not delete that record.');
+      setDeleteError('Could not delete that record.');
     } finally {
       setPendingDelete(null);
     }
