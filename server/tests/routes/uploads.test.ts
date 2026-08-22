@@ -3,7 +3,7 @@ import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { app } from '../../src/app';
 import { UPLOAD_DIR } from '../../src/routes/uploads';
-import { loginAgent } from '../helpers/auth';
+import { signInAgent } from '../helpers/auth';
 
 const png = Buffer.concat([
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -21,7 +21,7 @@ describe('POST /api/uploads', () => {
   });
 
   it('stores a png under a generated name and returns its url', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent.post('/api/uploads').attach('file', png, 'cover.png');
 
     expect(response.status).toBe(201);
@@ -33,7 +33,7 @@ describe('POST /api/uploads', () => {
   });
 
   it('rejects a payload whose extension lies', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent
       .post('/api/uploads')
       .attach('file', Buffer.from('<?php system($_GET["c"]); ?>'), 'cover.png');
@@ -43,7 +43,7 @@ describe('POST /api/uploads', () => {
   });
 
   it('rejects an SVG even though it is an image format', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>');
 
     const response = await agent.post('/api/uploads').attach('file', svg, 'cover.svg');
@@ -52,7 +52,7 @@ describe('POST /api/uploads', () => {
   });
 
   it('rejects a file over the 5 MB cap', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const oversized = Buffer.concat([png, Buffer.alloc(6 * 1024 * 1024)]);
 
     const response = await agent.post('/api/uploads').attach('file', oversized, 'big.png');
@@ -61,7 +61,7 @@ describe('POST /api/uploads', () => {
   });
 
   it('400s when no file is attached', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent.post('/api/uploads');
 
     expect(response.status).toBe(400);

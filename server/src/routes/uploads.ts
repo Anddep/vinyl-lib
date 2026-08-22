@@ -5,7 +5,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import multer from 'multer';
 import { asyncHandler } from '../lib/asyncHandler';
 import { sniffImageType } from '../lib/imageType';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireUser } from '../middleware/requireUser';
 
 export const uploadsRouter = Router();
 
@@ -27,7 +27,7 @@ const upload = multer({
 
 uploadsRouter.post(
   '/uploads',
-  requireAuth,
+  requireUser,
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {

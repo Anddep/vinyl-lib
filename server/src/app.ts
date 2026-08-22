@@ -6,11 +6,12 @@ import connectPgSimple from 'connect-pg-simple';
 import { env } from './config/env';
 import { healthRouter } from './routes/health';
 import { authRouter } from './routes/auth';
-import { recordsRouter } from './routes/records';
-import { statsRouter } from './routes/stats';
-import { wishlistRouter } from './routes/wishlist';
-import { setupRouter } from './routes/setup';
-import { settingsRouter } from './routes/settings';
+import { recordsRouters } from './routes/records';
+import { statsRouters } from './routes/stats';
+import { wishlistRouters } from './routes/wishlist';
+import { setupRouters } from './routes/setup';
+import { settingsRouters } from './routes/settings';
+import { sameOrigin } from './middleware/sameOrigin';
 import { UPLOAD_DIR, uploadsRouter } from './routes/uploads';
 
 const PgStore = connectPgSimple(session);
@@ -43,12 +44,20 @@ app.use(
     }),
     cookie: {
       httpOnly: true,
-      sameSite: 'strict',
+      // Lax, not Strict. The OAuth callback is a cross-site top-level
+      // navigation, and Strict withholds the cookie from exactly that — so the
+      // session carrying the state and PKCE verifier would never arrive and
+      // every sign-in would fail validation. Lax still withholds the cookie
+      // from cross-site non-GET requests, which is every write here; the
+      // sameOrigin middleware and the OAuth state parameter cover the rest.
+      sameSite: 'lax',
       secure: env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   }),
 );
+app.use(sameOrigin);
+
 // Silenced under test: morgan would print a request line per assertion.
 if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -56,11 +65,15 @@ if (env.NODE_ENV !== 'test') {
 
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
-app.use('/api', recordsRouter);
-app.use('/api', statsRouter);
-app.use('/api', wishlistRouter);
-app.use('/api', setupRouter);
-app.use('/api', settingsRouter);
+
+// The signed-in user's own collection. Every route inside carries requireUser
+// individually, so an unknown /api path still reaches the 404 handler below
+// rather than answering 401.
+app.use('/api', recordsRouters.own);
+app.use('/api', statsRouters.own);
+app.use('/api', wishlistRouters.own);
+app.use('/api', setupRouters.own);
+app.use('/api', settingsRouters.own);
 app.use('/api', uploadsRouter);
 
 // Uploaded covers. index:false and dotfiles:deny so the directory is not

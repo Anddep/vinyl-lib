@@ -1,59 +1,157 @@
 import { Router, type Request, type Response } from 'express';
-import bcrypt from 'bcryptjs';
-import rateLimit from 'express-rate-limit';
-import { env } from '../config/env';
 import { asyncHandler } from '../lib/asyncHandler';
+import { resolveSignIn } from '../lib/accounts';
+import { authorizeUrl, exchangeCode } from '../lib/oauth/flow';
+import { challengeFor, randomToken } from '../lib/oauth/pkce';
+import { configuredProviders, getProvider } from '../lib/oauth/providers';
+import { prisma } from '../prisma/client';
 
 export const authRouter = Router();
 
-export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-export const LOGIN_MAX_ATTEMPTS = 10;
-
 /**
- * One password guards every write on the site, so throttle guessing.
+ * Where to land after signing in.
  *
- * Exported as a factory because the limiter is stateful per instance: the
- * suite would otherwise exhaust the real allowance part-way through and every
- * later login would 429 for reasons unrelated to the test.
+ * Only app-relative paths, and never protocol-relative: `//evil.example` is a
+ * valid absolute URL to a browser, so `startsWith('/')` alone is not a check.
  */
-export function createLoginLimiter(limit = LOGIN_MAX_ATTEMPTS) {
-  return rateLimit({
-    windowMs: LOGIN_WINDOW_MS,
-    limit,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many attempts. Try again later.' },
-  });
+function safeReturnTo(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//')) {
+    return null;
+  }
+  return raw;
 }
 
-// Every Supertest request shares one IP, so the suite runs with the limiter
-// mounted but effectively open; its threshold is covered by its own test.
-const loginLimiter = createLoginLimiter(
-  env.NODE_ENV === 'test' ? Number.MAX_SAFE_INTEGER : LOGIN_MAX_ATTEMPTS,
+authRouter.get('/auth/providers', (_req: Request, res: Response) => {
+  res.json(configuredProviders().map((provider) => provider.id));
+});
+
+// Declared before the '/auth/:provider' routes below: Express matches in order,
+// so a wildcard segment would otherwise swallow /auth/me as a provider named
+// "me" and answer 404.
+authRouter.get(
+  '/auth/me',
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.userId;
+    if (typeof userId !== 'number') {
+      // "Nobody" is a valid answer to "who am I", not an error.
+      res.json({ user: null });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.suspendedAt !== null) {
+      res.json({ user: null });
+      return;
+    }
+
+    // Deliberately not the email: the session cookie is the credential, and the
+    // address is not something the client needs to render anything.
+    res.json({
+      user: {
+        id: user.id,
+        slug: user.slug,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        isPublic: user.isPublic,
+      },
+    });
+  }),
 );
 
-authRouter.post(
-  '/auth/login',
-  loginLimiter,
+authRouter.get(
+  '/auth/:provider',
   asyncHandler(async (req: Request, res: Response) => {
-    const password: unknown = req.body?.password;
-
-    // Explicit typeof: a JSON body can carry an object here, and passing one
-    // to bcrypt.compare would throw rather than simply fail to match.
-    if (typeof password !== 'string' || password.length === 0) {
-      res.status(400).json({ error: 'Password is required' });
+    const provider = getProvider(req.params.provider);
+    if (!provider) {
+      res.status(404).json({ error: 'Not found' });
       return;
     }
 
-    const valid = await bcrypt.compare(password, env.ADMIN_PASSWORD_HASH);
-    if (!valid) {
-      // Deliberately identical for every failure — no hint about closeness.
-      res.status(401).json({ error: 'Invalid credentials' });
+    const state = randomToken();
+    const verifier = provider.usesPkce ? randomToken() : null;
+
+    req.session.oauth = {
+      provider: provider.id,
+      state,
+      verifier,
+      returnTo: safeReturnTo(req.query.next),
+      // Carried through the round trip and validated only at redemption, so an
+      // invalid code cannot be probed before the caller has authenticated.
+      invite: typeof req.query.invite === 'string' ? req.query.invite : null,
+    };
+
+    // Saved explicitly: the browser leaves for the provider the moment this
+    // response lands, and an unwritten session would lose the state.
+    req.session.save(() => {
+      res.redirect(
+        authorizeUrl(provider, { state, challenge: verifier ? challengeFor(verifier) : null }),
+      );
+    });
+  }),
+);
+
+authRouter.get(
+  '/auth/:provider/callback',
+  asyncHandler(async (req: Request, res: Response) => {
+    const handshake = req.session.oauth ?? null;
+    // Consumed before anything can fail, so a replay finds nothing. Single use,
+    // not merely single valued.
+    delete req.session.oauth;
+
+    const provider = getProvider(req.params.provider);
+    if (!provider) {
+      res.status(404).json({ error: 'Not found' });
       return;
     }
 
-    req.session.isAdmin = true;
-    res.status(204).end();
+    const state = req.query.state;
+    if (
+      handshake === null ||
+      handshake.provider !== provider.id ||
+      typeof state !== 'string' ||
+      state !== handshake.state
+    ) {
+      res.redirect('/?error=state');
+      return;
+    }
+
+    const code = req.query.code;
+    if (typeof code !== 'string') {
+      // The user pressed cancel at the provider, or the provider sent an error.
+      res.redirect('/?error=denied');
+      return;
+    }
+
+    let result;
+    try {
+      const token = await exchangeCode(provider, { code, verifier: handshake.verifier });
+      const profile = await provider.fetchProfile(token);
+      result = await resolveSignIn(provider.id, profile, handshake.invite);
+    } catch {
+      // A provider outage or a bad code is not a 500 for the visitor: they are
+      // mid-navigation, and a raw error object is a dead end.
+      res.redirect('/?error=provider');
+      return;
+    }
+
+    if (!result.ok) {
+      res.redirect(`/?error=${result.reason}`);
+      return;
+    }
+
+    const returnTo = handshake.returnTo ?? '/admin';
+    const { userId } = result;
+
+    // A new session id: the callback is reachable cross-site under SameSite=Lax,
+    // so a pre-seeded session must not be promoted to an authenticated one.
+    req.session.regenerate((error) => {
+      if (error) {
+        res.redirect('/?error=session');
+        return;
+      }
+      req.session.userId = userId;
+      req.session.save(() => res.redirect(returnTo));
+    });
   }),
 );
 
@@ -61,8 +159,4 @@ authRouter.post('/auth/logout', (req: Request, res: Response) => {
   // destroy() removes the row from the session store, so the cookie is dead
   // even if someone kept a copy.
   req.session.destroy(() => res.status(204).end());
-});
-
-authRouter.get('/auth/me', (req: Request, res: Response) => {
-  res.json({ authenticated: req.session.isAdmin === true });
 });

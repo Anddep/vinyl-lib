@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../../src/app';
-import { loginAgent } from '../helpers/auth';
+import { signInAgent } from '../helpers/auth';
 import { prisma, resetDb } from '../helpers/db';
 
 beforeEach(resetDb);
@@ -21,7 +21,7 @@ describe.each([
   });
 
   it('creates, updates and deletes', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
 
     const created = await agent.post(url).send(valid);
     expect(created.status).toBe(201);
@@ -35,13 +35,13 @@ describe.each([
   });
 
   it('404s an unknown id', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     await agent.patch(`${url}/9999`).send({ position: 1 }).expect(404);
     await agent.delete(`${url}/9999`).expect(404);
   });
 
   it('reports missing required fields by name', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent.post(url).send({});
 
     expect(response.status).toBe(400);
@@ -51,7 +51,7 @@ describe.each([
 
 describe('wishlist cover art', () => {
   it('accepts an uploaded path and an external URL', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
 
     await agent
       .post('/api/wishlist')
@@ -64,7 +64,7 @@ describe('wishlist cover art', () => {
   });
 
   it('rejects a javascript: cover URL', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent
       .post('/api/wishlist')
       .send({ title: 'C', artist: 'X', coverUrl: 'javascript:alert(1)' });
@@ -74,7 +74,7 @@ describe('wishlist cover art', () => {
   });
 
   it('no longer accepts the removed pressing field', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent
       .post('/api/wishlist')
       .send({ title: 'D', artist: 'X', pressing: '1971 original' });
@@ -86,7 +86,7 @@ describe('wishlist cover art', () => {
 
 describe('setup icon validation', () => {
   it('rejects an icon with no matching component', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent
       .post('/api/setup')
       .send({ icon: 'gramophone', label: 'X', value: 'Y' });
@@ -98,7 +98,7 @@ describe('setup icon validation', () => {
   it.each(['turntable', 'cartridge', 'amplifier', 'speakers', 'cable'])(
     'accepts the %s icon',
     async (icon) => {
-      const agent = await loginAgent();
+      const { agent } = await signInAgent();
       await agent.post('/api/setup').send({ icon, label: 'X', value: 'Y' }).expect(201);
     },
   );
@@ -110,17 +110,19 @@ describe('PATCH /api/settings', () => {
   });
 
   it('upserts and overwrites a setting', async () => {
-    const agent = await loginAgent();
+    const { agent, user } = await signInAgent();
 
     await agent.patch('/api/settings').send({ collectingSince: '2009' }).expect(200);
     await agent.patch('/api/settings').send({ collectingSince: '2011' }).expect(200);
 
-    const stored = await prisma.siteSetting.findUnique({ where: { key: 'collectingSince' } });
+    const stored = await prisma.siteSetting.findUnique({
+      where: { ownerId_key: { ownerId: user.id, key: 'collectingSince' } },
+    });
     expect(stored?.value).toBe('2011');
   });
 
   it('stores the hero and setup copy', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
 
     const response = await agent.patch('/api/settings').send({
       heroEyebrow: 'Personal vinyl library · est. 2009',
@@ -136,7 +138,7 @@ describe('PATCH /api/settings', () => {
   });
 
   it('accepts an uploaded path for the section images', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
 
     const response = await agent
       .patch('/api/settings')
@@ -147,7 +149,7 @@ describe('PATCH /api/settings', () => {
   });
 
   it('rejects a javascript: image URL', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent
       .patch('/api/settings')
       .send({ heroImageUrl: 'javascript:alert(1)' });
@@ -157,14 +159,14 @@ describe('PATCH /api/settings', () => {
   });
 
   it('rejects an unknown key rather than storing junk', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent.patch('/api/settings').send({ nonsense: 'x' });
 
     expect(response.status).toBe(400);
   });
 
   it('rejects a year that is not four digits', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     const response = await agent.patch('/api/settings').send({ collectingSince: 'ages ago' });
 
     expect(response.status).toBe(400);
@@ -174,17 +176,18 @@ describe('PATCH /api/settings', () => {
 
 describe('GET /api/settings', () => {
   it('returns stored settings as a flat object', async () => {
-    const agent = await loginAgent();
+    const { agent } = await signInAgent();
     await agent.patch('/api/settings').send({ collectingSince: '2009' }).expect(200);
 
-    const response = await request(app).get('/api/settings');
+    const response = await agent.get('/api/settings');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ collectingSince: '2009' });
   });
 
   it('returns an empty object before anything is set', async () => {
-    const response = await request(app).get('/api/settings');
+    const { agent } = await signInAgent();
+    const response = await agent.get('/api/settings');
 
     expect(response.body).toEqual({});
   });
