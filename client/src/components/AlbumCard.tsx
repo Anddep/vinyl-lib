@@ -44,10 +44,12 @@ function CardShell({ href, variant, label, children }: CardShellProps): JSX.Elem
       <a
         className={classes}
         href={href}
-        // The target is an arbitrary URL the collector pasted: noopener stops
-        // the opened page reaching back through window.opener.
+        // The target is an arbitrary URL somebody pasted into their own
+        // collection: noopener stops the opened page reaching back through
+        // window.opener, and nofollow ugc removes the search-ranking value that
+        // would otherwise make this site worth signing up to spam.
         target="_blank"
-        rel="noopener noreferrer"
+        rel="nofollow ugc noopener noreferrer"
         aria-label={label}
       >
         {children}

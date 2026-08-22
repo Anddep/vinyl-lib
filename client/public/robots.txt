@@ -1,0 +1,6 @@
+# Public collections are meant to be found. The admin and the API are not.
+User-agent: *
+Allow: /
+Allow: /u/
+Disallow: /admin
+Disallow: /api/
