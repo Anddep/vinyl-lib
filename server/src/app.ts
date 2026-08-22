@@ -11,6 +11,7 @@ import { statsRouters } from './routes/stats';
 import { wishlistRouters } from './routes/wishlist';
 import { setupRouters } from './routes/setup';
 import { settingsRouters } from './routes/settings';
+import { publicCollectionRouter } from './routes/publicCollection';
 import { sameOrigin } from './middleware/sameOrigin';
 import { UPLOAD_DIR, uploadsRouter } from './routes/uploads';
 
@@ -65,6 +66,10 @@ if (env.NODE_ENV !== 'test') {
 
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
+
+// Someone else's collection, by slug. Read-only: the write routes live on the
+// own tree, where the owner comes from the session rather than the URL.
+app.use('/api/u/:slug', publicCollectionRouter);
 
 // The signed-in user's own collection. Every route inside carries requireUser
 // individually, so an unknown /api path still reaches the 404 handler below
