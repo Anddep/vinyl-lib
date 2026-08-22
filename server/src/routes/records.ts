@@ -16,11 +16,9 @@ recordsRouter.get(
   '/records',
   asyncHandler(async (req: Request, res: Response) => {
     const limit = parseLimit(req.query.limit, DEFAULT_LIMIT);
-    const featuredOnly = req.query.featured === 'true';
     const byAddedAt = req.query.sort === 'addedAt';
 
     const records = await prisma.record.findMany({
-      where: featuredOnly ? { featured: true } : undefined,
       orderBy: byAddedAt ? [{ addedAt: 'desc' }] : [{ position: 'asc' }, { id: 'asc' }],
       take: limit,
     });

@@ -47,7 +47,7 @@ export function Hero({ stats, settings }: HeroProps): JSX.Element {
           {lede}
         </p>
         <div className={styles.actions}>
-          <Button href="#featured" size="lg">
+          <Button href="#collection" size="lg">
             Browse Collection
           </Button>
           <Button href="#setup" variant="secondary" size="lg">

@@ -10,7 +10,6 @@ describe('collection fixture', () => {
 
     // 14, not 20: the handoff's featured and recent lists are disjoint albums.
     expect(await prisma.record.count()).toBe(14);
-    expect(await prisma.record.count({ where: { featured: true } })).toBe(8);
     expect(await prisma.wishlistItem.count()).toBe(6);
     expect(await prisma.setupItem.count()).toBe(5);
 

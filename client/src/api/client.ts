@@ -44,9 +44,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const getFeaturedRecords = (): Promise<VinylRecord[]> =>
-  request<VinylRecord[]>('/records?featured=true&limit=8');
-
 export const getRecentRecords = (): Promise<VinylRecord[]> =>
   request<VinylRecord[]>('/records?sort=addedAt&limit=6');
 

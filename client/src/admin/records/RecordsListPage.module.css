@@ -53,16 +53,6 @@
   border-color: var(--color-accent);
 }
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  min-height: 44px;
-}
-
 .thumb {
   width: 40px;
   height: 40px;
@@ -84,18 +74,6 @@
 .title {
   font-weight: 500;
   color: var(--color-text-primary);
-}
-
-.badge {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-on-accent);
-  background: var(--color-accent);
-  border-radius: var(--radius-chip);
-  padding: 3px 7px;
-  margin-left: var(--space-2);
 }
 
 .message {

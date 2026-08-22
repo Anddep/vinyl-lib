@@ -39,7 +39,7 @@ export function RecentlyAdded({
         )}
 
         <div className={styles.footer}>
-          <Button href="#featured" variant="secondary" size="lg" className={styles.viewAll}>
+          <Button href="#collection" variant="secondary" size="lg" className={styles.viewAll}>
             View All {total} {total === 1 ? 'Record' : 'Records'}
           </Button>
         </div>

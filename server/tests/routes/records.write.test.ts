@@ -40,7 +40,6 @@ describe('POST /api/records', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.slug).toBe('bitches-brew');
-    expect(response.body.featured).toBe(false);
     expect(response.body.position).toBe(0);
   });
 
@@ -104,11 +103,11 @@ describe('PATCH /api/records/:id', () => {
 
     const response = await agent
       .patch(`/api/records/${created.body.id}`)
-      .send({ genre: 'Fusion', featured: true });
+      .send({ genre: 'Fusion', position: 4 });
 
     expect(response.status).toBe(200);
     expect(response.body.genre).toBe('Fusion');
-    expect(response.body.featured).toBe(true);
+    expect(response.body.position).toBe(4);
     expect(response.body.title).toBe('Bitches Brew');
     expect(response.body.artist).toBe('Miles Davis');
   });

@@ -18,7 +18,11 @@ services:
   server:
     build:
       target: dev
-    command: ['npm', 'run', 'dev']
+    # The schema is bind-mounted but the generated client lives in the image's
+    # node_modules, so editing schema.prisma leaves the container querying
+    # columns that no longer exist. Regenerating on start makes the dev
+    # container self-healing after a migration.
+    command: ['sh', '-c', 'npx prisma generate && npm run dev']
     environment:
       - NODE_ENV=development
       - PORT=${SERVER_PORT}

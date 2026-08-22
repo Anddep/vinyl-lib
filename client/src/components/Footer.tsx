@@ -3,7 +3,7 @@ import styles from './Footer.module.css';
 
 const FOOTER_LINKS = [
   { href: '#top', label: 'Home' },
-  { href: '#featured', label: 'Collection' },
+  { href: '#collection', label: 'Collection' },
   { href: '#setup', label: 'Setup' },
 ];
 
@@ -36,7 +36,7 @@ export function Footer(): JSX.Element {
 
         <div className={styles.socials}>
           {SOCIALS.map(({ label, Icon }) => (
-            <a key={label} className={styles.social} href="#featured" aria-label={label}>
+            <a key={label} className={styles.social} href="#collection" aria-label={label}>
               <Icon />
             </a>
           ))}

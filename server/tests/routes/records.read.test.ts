@@ -10,13 +10,19 @@ beforeEach(async () => {
 });
 
 describe('GET /api/records', () => {
-  it('returns featured records in position order', async () => {
-    const response = await request(app).get('/api/records?featured=true&limit=8');
+  it('returns every record in position order', async () => {
+    const response = await request(app).get('/api/records');
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveLength(8);
+    expect(response.body).toHaveLength(14);
     expect(response.body[0].title).toBe('Bitches Brew');
-    expect(response.body[7].title).toBe('Endtroducing.....');
+  });
+
+  it('ignores a featured query rather than filtering on a field that is gone', async () => {
+    const response = await request(app).get('/api/records?featured=true');
+
+    expect(response.body).toHaveLength(14);
+    expect(response.body[0].featured).toBeUndefined();
   });
 
   it('returns the most recently added first when sorted by addedAt', async () => {

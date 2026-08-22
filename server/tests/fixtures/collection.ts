@@ -8,8 +8,8 @@ import { PrismaClient } from '@prisma/client';
  * collection would silently wipe curated content. Content is managed through
  * the admin panel now, so nothing writes this outside tests.
  *
- * Featured records are backdated so ordering by addedAt returns the six
- * intended "recently added" albums rather than a mix of the two lists.
+ * Older records are backdated so ordering by addedAt returns a predictable
+ * six for the "recently added" assertions.
  */
 const records = [
   {
@@ -19,7 +19,6 @@ const records = [
     year: 1970,
     format: '2×LP',
     genre: 'Jazz',
-    featured: true,
     position: 0,
     addedAt: new Date('2026-05-02'),
   },
@@ -30,7 +29,6 @@ const records = [
     year: 1992,
     format: '2×LP',
     genre: 'Electronic',
-    featured: true,
     position: 1,
     addedAt: new Date('2026-04-18'),
   },
@@ -41,7 +39,6 @@ const records = [
     year: 1971,
     format: 'LP',
     genre: 'Ukrainian',
-    featured: true,
     position: 2,
     addedAt: new Date('2026-03-11'),
   },
@@ -52,7 +49,6 @@ const records = [
     year: 1965,
     format: 'LP',
     genre: 'Jazz',
-    featured: true,
     position: 3,
     addedAt: new Date('2026-02-20'),
   },
@@ -63,7 +59,6 @@ const records = [
     year: 1980,
     format: 'LP',
     genre: 'Rock',
-    featured: true,
     position: 4,
     addedAt: new Date('2026-01-09'),
   },
@@ -74,7 +69,6 @@ const records = [
     year: 1958,
     format: 'LP',
     genre: 'Jazz',
-    featured: true,
     position: 5,
     addedAt: new Date('2025-12-14'),
   },
@@ -85,7 +79,6 @@ const records = [
     year: 1994,
     format: 'LP',
     genre: 'Soundtrack',
-    featured: true,
     position: 6,
     addedAt: new Date('2025-11-30'),
   },
@@ -96,7 +89,6 @@ const records = [
     year: 1996,
     format: '2×LP',
     genre: 'Hip-Hop',
-    featured: true,
     position: 7,
     addedAt: new Date('2025-10-22'),
   },
@@ -107,7 +99,6 @@ const records = [
     year: 1998,
     format: '2×LP',
     genre: 'Electronic',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-08-18'),
   },
@@ -118,7 +109,6 @@ const records = [
     year: 1959,
     format: 'LP',
     genre: 'Jazz',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-08-14'),
   },
@@ -129,7 +119,6 @@ const records = [
     year: 1974,
     format: 'LP',
     genre: 'Electronic',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-08-11'),
   },
@@ -140,7 +129,6 @@ const records = [
     year: 1971,
     format: 'LP',
     genre: 'Ukrainian',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-08-07'),
   },
@@ -151,7 +139,6 @@ const records = [
     year: 1978,
     format: 'LP',
     genre: 'Electronic',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-08-03'),
   },
@@ -162,7 +149,6 @@ const records = [
     year: 1998,
     format: 'LP',
     genre: 'Electronic',
-    featured: false,
     position: 0,
     addedAt: new Date('2026-07-29'),
   },
