@@ -857,14 +857,22 @@ Rejected: allowlisting email domains. It reads like access control and is not �
 which is the real client address because `app.ts` already sets `trust proxy` to 1 — without that
 every request behind nginx would share one key and the limits would be nonsense.
 
-| Route group                        | Limit                  | What it stops                                                                                             |
-| ---------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| `GET /api/auth/:provider`          | 20 / 15 min / IP       | Filling the `session` table with abandoned OAuth state                                                    |
-| `GET /api/auth/:provider/callback` | 20 / 15 min / IP       | Code and state spraying                                                                                   |
-| Account creation (§6.4 step 4)     | 3 / 24 h / IP          | Signup floods. Counted only when a new account is actually reached, so a normal sign-in never consumes it |
-| Non-GET `/api/*`                   | 300 / 15 min / session | Runaway scripted editing                                                                                  |
-| `GET /api/u/:slug/*`               | 600 / 15 min / IP      | Bulk scraping                                                                                             |
-| `POST /api/uploads`                | 60 / hour / session    | Pairs with the byte quota below                                                                           |
+| Route group                        | Limit                  | What it stops                                          |
+| ---------------------------------- | ---------------------- | ------------------------------------------------------ |
+| `GET /api/auth/:provider`          | 20 / 15 min / IP       | Filling the `session` table with abandoned OAuth state |
+| `GET /api/auth/:provider/callback` | 20 / 15 min / IP       | Code and state spraying                                |
+| Account creation (§6.4 step 4)     | 20 / hour, site-wide   | Signup floods. **Not per IP** — see below              |
+| Non-GET `/api/*`                   | 300 / 15 min / session | Runaway scripted editing                               |
+| `GET /api/u/:slug/*`               | 600 / 15 min / IP      | Bulk scraping                                          |
+| `POST /api/uploads`                | 60 / hour / session    | Pairs with the byte quota below                        |
+
+Account creation is the one that is not keyed on an address at all. Counting it per IP would mean
+storing an IP against a sign-in decision, and `express-rate-limit` counts requests rather than
+outcomes, so an ordinary returning sign-in would consume the allowance. `MAX_SIGNUPS_PER_HOUR` is
+checked instead inside `resolveSignIn`, against the number of `User` rows created in the last hour
+— no address is stored, and every branch above the check resolves to an existing account, so a
+returning collector is never throttled. The trade is that a flood pauses signups for everyone
+rather than for one attacker, which is acceptable when `SIGNUP_MODE=invite` is the primary gate.
 
 The default memory store is process-local. That is the whole application today — one container —
 and it is stated in the README, because the day this runs as two replicas the limits silently halve
@@ -1088,11 +1096,13 @@ UPLOAD_QUOTA_BYTES=157286400
 MAX_RECORDS_PER_USER=5000
 MAX_WISHLIST_PER_USER=500
 MAX_SETUP_PER_USER=100
+# Site-wide, not per IP (§9.3).
+MAX_SIGNUPS_PER_HOUR=20
 ```
 
 `server/src/config/env.ts` — drop `ADMIN_PASSWORD_HASH`; add `PUBLIC_BASE_URL` via the existing
 `required()`; the four provider variables and `BOOTSTRAP_OWNER_EMAIL` as optional; `SIGNUP_MODE`
-parsed against the three literals and rejected at startup if it is anything else; the five ceilings
+parsed against the three literals and rejected at startup if it is anything else; the six ceilings
 parsed as numbers with defaults, reusing the shape of the existing `parsePort()` helper — which
 exists precisely because Compose substitutes an empty string for an unset variable and `Number('')`
 is `0`, and a quota of zero would refuse every upload.
