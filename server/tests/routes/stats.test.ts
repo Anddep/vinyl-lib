@@ -190,3 +190,81 @@ describe('GET /api/genres', () => {
     expect(response.body).toEqual([]);
   });
 });
+
+describe('with two collections in the database', () => {
+  it('counts, tops and windows only the requesting owner rows', async () => {
+    await loadFixture(prisma, owner.id);
+    const other = await signInAgent({
+      providerUserId: 'sub-other',
+      email: 'other@example.com',
+      displayName: 'Other',
+    });
+    await other.agent
+      .post('/api/records')
+      .send({ title: 'Nevermind', artist: 'Nirvana', year: 1991, format: 'LP', genre: 'Grunge' })
+      .expect(201);
+    await other.agent
+      .post('/api/records')
+      .send({ title: 'In Utero', artist: 'Nirvana', year: 1993, format: 'LP', genre: 'Grunge' })
+      .expect(201);
+
+    const mine = (await agent.get('/api/stats')).body;
+    const theirs = (await other.agent.get('/api/stats')).body;
+
+    expect(mine.totalRecords).toBe(14);
+    expect(mine.topGenre.name).not.toBe('Grunge');
+    expect(theirs.totalRecords).toBe(2);
+    expect(theirs.topGenre).toEqual({ name: 'Grunge', count: 2 });
+    expect(theirs.topArtist).toEqual({ name: 'Nirvana', count: 2 });
+  });
+
+  it('keeps collectingSince per owner', async () => {
+    const other = await signInAgent({
+      providerUserId: 'sub-other',
+      email: 'other@example.com',
+    });
+    await agent.patch('/api/settings').send({ collectingSince: '2009' }).expect(200);
+    await other.agent.patch('/api/settings').send({ collectingSince: '2015' }).expect(200);
+
+    expect((await agent.get('/api/stats')).body.collectingSince).toBe('2009');
+    expect((await other.agent.get('/api/stats')).body.collectingSince).toBe('2015');
+  });
+
+  it('lists only the requesting owner genres', async () => {
+    await loadFixture(prisma, owner.id);
+    const other = await signInAgent({
+      providerUserId: 'sub-other',
+      email: 'other@example.com',
+    });
+    await other.agent
+      .post('/api/records')
+      .send({ title: 'Nevermind', artist: 'Nirvana', year: 1991, format: 'LP', genre: 'Grunge' })
+      .expect(201);
+
+    const mine = (await agent.get('/api/genres')).body as Array<{ name: string }>;
+    const theirs = (await other.agent.get('/api/genres')).body as Array<{ name: string }>;
+
+    expect(mine.map((g) => g.name)).not.toContain('Grunge');
+    expect(theirs.map((g) => g.name)).toEqual(['Grunge']);
+  });
+
+  it('badges exactly one record per collection, not one per table', async () => {
+    await loadFixture(prisma, owner.id);
+    const other = await signInAgent({
+      providerUserId: 'sub-other',
+      email: 'other@example.com',
+    });
+    // Added after every fixture record, so a table-wide query would badge this
+    // one and leave the first collection with none.
+    await other.agent
+      .post('/api/records')
+      .send({ title: 'Nevermind', artist: 'Nirvana', year: 1991, format: 'LP', genre: 'Grunge' })
+      .expect(201);
+
+    const mine = (await agent.get('/api/records?sort=addedAt')).body as Array<{ isNew: boolean }>;
+    const theirs = (await other.agent.get('/api/records')).body as Array<{ isNew: boolean }>;
+
+    expect(mine.filter((r) => r.isNew)).toHaveLength(1);
+    expect(theirs.filter((r) => r.isNew)).toHaveLength(1);
+  });
+});
