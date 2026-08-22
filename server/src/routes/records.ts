@@ -2,7 +2,9 @@ import { Router, type Request, type Response } from 'express';
 import { prisma } from '../prisma/client';
 import { parseLimit } from '../lib/query';
 import { asyncHandler } from '../lib/asyncHandler';
+import { limits } from '../config/env';
 import { ownerOf } from '../lib/owner';
+import { enforceCeiling } from '../lib/quota';
 import { parseId } from '../lib/params';
 import { slugify, uniqueSlug } from '../lib/slug';
 import type { ResourceRouters } from '../lib/resourceRouter';
@@ -89,6 +91,15 @@ function buildRouters(): ResourceRouters {
     validate(recordCreateSchema),
     asyncHandler(async (_req: Request, res: Response) => {
       const ownerId = ownerOf(res);
+      const allowed = enforceCeiling(res, {
+        count: await prisma.record.count({ where: { ownerId } }),
+        max: limits().maxRecords,
+        noun: 'records',
+      });
+      if (!allowed) {
+        return;
+      }
+
       const body = res.locals.body as RecordCreate;
 
       // The owner is part of the collision check: without it the second

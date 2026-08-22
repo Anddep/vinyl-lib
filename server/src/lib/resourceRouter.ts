@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import type { ZodType } from 'zod';
 import { asyncHandler } from './asyncHandler';
 import { ownerOf } from './owner';
+import { enforceCeiling } from './quota';
 import { parseId } from './params';
 import { requireUser } from '../middleware/requireUser';
 import { validate } from '../middleware/validate';
@@ -39,6 +40,7 @@ interface CrudDelegate {
   // findFirst rather than findUnique: { id, ownerId } is not a unique input,
   // and findFirst says that plainly.
   findFirst(args: { where: OwnerScope & { id: number } }): Promise<unknown | null>;
+  count(args: { where: OwnerScope }): Promise<number>;
   create(args: { data: ValidatedBody }): Promise<unknown>;
   update(args: { where: OwnerScope & { id: number }; data: ValidatedBody }): Promise<unknown>;
   delete(args: { where: OwnerScope & { id: number } }): Promise<unknown>;
@@ -52,6 +54,10 @@ interface ResourceRouterOptions {
   delegate: CrudDelegate;
   createSchema: ZodType;
   updateSchema: ZodType;
+  /** Read lazily so a test can vary the ceiling with vi.stubEnv. */
+  max: () => number;
+  /** Plural, for the 409 message: "wishlist items". */
+  plural: string;
 }
 
 export interface ResourceRouters {
@@ -74,6 +80,8 @@ export function createResourceRouter({
   delegate,
   createSchema,
   updateSchema,
+  max,
+  plural,
 }: ResourceRouterOptions): ResourceRouters {
   /** Resolves the :id param, answering 400 or 404 itself when it cannot. */
   async function resolveId(req: Request, res: Response): Promise<number | null> {
@@ -115,9 +123,19 @@ export function createResourceRouter({
     requireUser,
     validate(createSchema),
     asyncHandler(async (_req: Request, res: Response) => {
+      const ownerId = ownerOf(res);
+      const allowed = enforceCeiling(res, {
+        count: await delegate.count({ where: { ownerId } }),
+        max: max(),
+        noun: plural,
+      });
+      if (!allowed) {
+        return;
+      }
+
       // ownerId last, so a body key of that name cannot win. The zod schemas
       // strip unknown keys as well, which makes this the second line of defence.
-      const data = { ...(res.locals.body as ValidatedBody), ownerId: ownerOf(res) };
+      const data = { ...(res.locals.body as ValidatedBody), ownerId };
       res.status(201).json(await delegate.create({ data }));
     }),
   );

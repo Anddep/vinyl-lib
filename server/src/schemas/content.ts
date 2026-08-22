@@ -9,8 +9,8 @@ import { imageSource, safeUrl } from '../lib/url';
 export const SETUP_ICONS = ['turntable', 'cartridge', 'amplifier', 'speakers', 'cable'] as const;
 
 export const wishlistCreateSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required'),
-  artist: z.string().trim().min(1, 'Artist is required'),
+  title: z.string().trim().min(1, 'Title is required').max(200, 'That is too long'),
+  artist: z.string().trim().min(1, 'Artist is required').max(200, 'That is too long'),
   url: safeUrl.nullish(),
   coverUrl: imageSource.nullish(),
   position: z.number().int().min(0).optional(),
@@ -19,8 +19,9 @@ export const wishlistUpdateSchema = wishlistCreateSchema.partial();
 
 export const setupCreateSchema = z.object({
   icon: z.enum(SETUP_ICONS, { error: 'Not an available icon' }),
-  label: z.string().trim().min(1, 'Label is required'),
-  value: z.string().trim().min(1, 'Value is required'),
+  label: z.string().trim().min(1, 'Label is required').max(200, 'That is too long'),
+  // Longer than a label: this one holds a description, not a name.
+  value: z.string().trim().min(1, 'Value is required').max(500, 'That is too long'),
   position: z.number().int().min(0).optional(),
 });
 export const setupUpdateSchema = setupCreateSchema.partial();
