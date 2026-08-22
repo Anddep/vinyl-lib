@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- deps: install full workspace so npm workspaces resolve correctly ----
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -23,7 +23,7 @@ COPY . .
 RUN npm run build -w server
 
 # ---- prod: run compiled JS only ----
-FROM node:20-alpine AS prod
+FROM node:24-alpine AS prod
 RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production

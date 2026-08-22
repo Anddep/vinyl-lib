@@ -33,7 +33,10 @@
 }
 
 .controls {
-  flex: 1;
+  /* min-width:0 is what stops the file input's intrinsic width from forcing
+     the whole row wider than its container. */
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -84,4 +87,47 @@
   margin: 0;
   font-size: var(--text-caption-size);
   color: var(--color-danger);
+}
+
+/*
+ * The browser's default file control is a grey system button that looks
+ * nothing like the rest of the admin. Style the button half directly rather
+ * than hiding the input behind a label, which loses keyboard focus.
+ */
+.fileInput {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  outline: none;
+  max-width: 100%;
+  transition: border-color var(--transition-quick);
+}
+
+.fileInput:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.fileInput::file-selector-button {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  color: var(--color-text-body);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-chip);
+  padding: 7px 12px;
+  margin-right: var(--space-3);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-quick),
+    color var(--transition-quick);
+}
+
+.fileInput::file-selector-button:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }

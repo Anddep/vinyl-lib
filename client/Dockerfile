@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- deps: install full workspace so npm workspaces resolve correctly ----
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
