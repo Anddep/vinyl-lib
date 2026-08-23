@@ -1047,10 +1047,11 @@ There is no restore drill. It went with the backups (§11).
 3. **How long do the scanners stay non-blocking?** `continue-on-error: true` is deliberate and
    temporary (§8.1). Someone has to decide when to remove it; the suggestion is after one
    week and one triage pass.
-4. **Does `read_only: true` fight the Postgres image?** The tmpfs set in §3.2 is derived from
-   what the entrypoint is known to write, not from having watched it. If it resists, the
-   fallback is to drop `read_only` for `db` alone and keep it everywhere else, and the plan
-   says so rather than leaving the implementer to improvise.
+4. ~~**Does `read_only: true` fight the Postgres image?**~~ **Resolved 2026-08-23: it does
+   not.** Brought up with the tmpfs set in §3.2 (`/var/run/postgresql`, `/tmp`) and `db`
+   reports healthy. The `server` container was also confirmed to run read-only with all
+   capabilities dropped as a non-root user, and to run `prisma migrate deploy` under those
+   conditions. No fallback needed; `read_only` stays on all four services.
 5. **Should the pre-migration dump survive at all?** It is the one piece of dump-taking left
    after §11. It is retained because §10.2's manual recovery has nothing to restore without
    it. Worth a second look if the operator wants the box to hold no database copies at all.

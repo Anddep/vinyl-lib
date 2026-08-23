@@ -289,7 +289,7 @@ Everything in this phase is verifiable on the laptop, before any VM exists, by r
 
 **Files:** `deploy/Caddyfile`
 
-- [ ] **Step 1: Write it**
+- [x] **Step 1: Write it**
 
 ```caddyfile
 # The site address is the only thing that changes when the domain does. Set it
@@ -321,7 +321,7 @@ Everything in this phase is verifiable on the laptop, before any VM exists, by r
 }
 ```
 
-- [ ] **Step 2: Check the CSP against the built output, do not trust the derivation**
+- [x] **Step 2: Check the CSP against the built output, do not trust the derivation**
 
 ```bash
 npm run build -w client && grep -c '<style\|<script[^>]*>[^<]' client/dist/index.html
@@ -329,7 +329,7 @@ npm run build -w client && grep -c '<style\|<script[^>]*>[^<]' client/dist/index
 
 Confirm there is still no inline `<script>` and no inline `<style>`, and that the only external hosts are `fonts.googleapis.com` and `fonts.gstatic.com`. If a future dependency adds an inline script, this is where it is caught.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 `feat: terminate TLS and set the security headers at the edge`
 
@@ -339,11 +339,11 @@ Confirm there is still no inline `<script>` and no inline `<style>`, and that th
 
 **Files:** `client/nginx.conf.template`
 
-- [ ] **Step 1: Remove the policy**
+- [x] **Step 1: Remove the policy**
 
 Delete the `add_header Content-Security-Policy` line and its comment block from the `location /` block.
 
-- [ ] **Step 2: Leave a pointer**
+- [x] **Step 2: Leave a pointer**
 
 So the next reader does not conclude it was forgotten:
 
@@ -355,7 +355,7 @@ So the next reader does not conclude it was forgotten:
 # SITE_ADDRESS=localhost.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 `refactor: keep the content security policy in one place`
 
@@ -365,7 +365,7 @@ So the next reader does not conclude it was forgotten:
 
 **Files:** `docker-compose.deploy.yml`
 
-- [ ] **Step 1: Write the four services**
+- [x] **Step 1: Write the four services**
 
 Key points, each with a reason in the spec:
 
@@ -375,7 +375,7 @@ Key points, each with a reason in the spec:
 - Volumes `caddy-data`, `caddy-config`, `db-data`, `uploads`. `caddy-data` is a named volume, not a bind mount — losing it means re-issuing into Let's Encrypt's five-duplicates-per-week limit.
 - The Caddyfile bind-mounted read-only.
 
-- [ ] **Step 2: Harden every service**
+- [x] **Step 2: Harden every service**
 
 `restart: unless-stopped`, `security_opt: ["no-new-privileges:true"]`, `cap_drop: [ALL]`, `read_only: true` with tmpfs, and a memory limit. Per-service, from spec §3.2:
 
@@ -386,21 +386,21 @@ Key points, each with a reason in the spec:
 | server  | none — `USER node` from Task 4                           | `/tmp`                                                      | 1g        |
 | db      | `CHOWN`, `DAC_READ_SEARCH`, `FOWNER`, `SETGID`, `SETUID` | `/var/run/postgresql`, `/tmp`                               | 2g        |
 
-- [ ] **Step 3: Add healthchecks**
+- [x] **Step 3: Add healthchecks**
 
 On `server` (curl `/api/health`), keeping the existing `pg_isready` on `db`, so `up -d --wait` has something to wait for.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```bash
 docker compose -f docker-compose.deploy.yml config -q
 ```
 
-- [ ] **Step 5: Verify `read_only` against reality**
+- [x] **Step 5: Verify `read_only` against reality**
 
 This is spec §15 open question 4. Bring the stack up and watch every container reach a steady state. Postgres is the one expected to fight. If it does, read the actual error and add the missing tmpfs; only if that fails, drop `read_only` for `db` alone and record why in a comment. Do not drop it for the others.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 `feat: describe the deployed topology in version control`
 
@@ -410,7 +410,7 @@ This is spec §15 open question 4. Bring the stack up and watch every container 
 
 **Files:** none — a verification task. Record the results in the Task 7 commit body.
 
-- [ ] **Step 1: Bring up the real topology locally**
+- [x] **Step 1: Bring up the real topology locally**
 
 Build both images locally, tag them, point `CLIENT_IMAGE`/`SERVER_IMAGE` at those tags, then:
 
@@ -418,7 +418,7 @@ Build both images locally, tag them, point `CLIENT_IMAGE`/`SERVER_IMAGE` at thos
 SITE_ADDRESS=localhost docker compose -f docker-compose.deploy.yml up -d
 ```
 
-- [ ] **Step 2: Verify the headers**
+- [x] **Step 2: Verify the headers**
 
 ```bash
 curl -kI https://localhost/
@@ -426,7 +426,7 @@ curl -kI https://localhost/
 
 Shows HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, the CSP, and **no** `Server` header. Then `curl -kI https://localhost/api/health` shows the security headers but **not** the Caddy CSP.
 
-- [ ] **Step 3: Verify the redirect**
+- [x] **Step 3: Verify the redirect**
 
 ```bash
 curl -I http://localhost/
@@ -434,15 +434,15 @@ curl -I http://localhost/
 
 Returns 308 to `https://`.
 
-- [ ] **Step 4: Verify the CSP in a browser, on every route**
+- [x] **Step 4: Verify the CSP in a browser, on every route**
 
 `/`, `/u/:slug`, `/admin` and each admin screen. **Zero CSP violations in the console.**
 
-- [ ] **Step 5: Verify the bug is dead**
+- [x] **Step 5: Verify the bug is dead**
 
 In the console, `getComputedStyle(document.body).fontFamily` must resolve to Geist, and the Network tab must show `fonts.googleapis.com` and `fonts.gstatic.com` loading rather than blocked. This is the §5.4.2 fix, confirmed.
 
-- [ ] **Step 6: Verify nothing else listens**
+- [x] **Step 6: Verify nothing else listens**
 
 ```bash
 docker compose -f docker-compose.deploy.yml ps
