@@ -830,7 +830,7 @@ At both providers, with the exact URLs.
 
 - [x] **The GitHub secrets and variables to create**
 
-In the `production` Environment: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_KNOWN_HOSTS`, and the variable `PUBLIC_BASE_URL`. How to capture the known-hosts value with `ssh-keyscan`, and why `StrictHostKeyChecking=no` is not the shortcut.
+In the `production` Environment: `SSH_HOST`, `SSH_USER`, `SSH_KEY` and `SSH_KNOWN_HOSTS`. No `PUBLIC_BASE_URL` variable — `remote-deploy.sh` reads it from the box's own `.env`, so the public origin has one definition rather than two that can drift. How to capture the known-hosts value with `ssh-keyscan`, and why `StrictHostKeyChecking=no` is not the shortcut.
 
 - [x] **Making the repository public**
 

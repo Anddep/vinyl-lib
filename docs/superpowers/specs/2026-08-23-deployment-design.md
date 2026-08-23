@@ -986,9 +986,14 @@ four.
    values; it does not open the PR.
 3. **Register the OAuth callbacks** at Google and GitHub:
    `https://vinyl.is-a.dev/api/auth/google/callback` and `…/github/callback`.
-4. **Create the GitHub Environment secrets** — `SSH_HOST`, `SSH_USER`, `SSH_KEY`,
-   `SSH_KNOWN_HOSTS` — and the variable `PUBLIC_BASE_URL`. Plus flipping the repository to
-   public and enabling push protection.
+4. **Create the GitHub Environment secrets** — `SSH_HOST`, `SSH_USER`, `SSH_KEY` and
+   `SSH_KNOWN_HOSTS`. Plus flipping the repository to public and enabling push protection.
+
+   _Revised during implementation:_ an earlier draft of this section also called for a
+   `PUBLIC_BASE_URL` environment variable, for the deploy's health poll. It is not needed.
+   `remote-deploy.sh` reads the value out of the box's own `.env`, which is where the
+   application already gets it, so the public origin has exactly one definition instead of
+   two that could drift apart.
 
 ### 13.1 The DNS records
 
