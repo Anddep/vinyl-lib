@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-import { env } from './config/env';
+import { env, trustProxyHops } from './config/env';
 import { healthRouter } from './routes/health';
 import { accountRouter } from './routes/account';
 import { authRouter } from './routes/auth';
@@ -21,9 +21,16 @@ const PgStore = connectPgSimple(session);
 
 export const app = express();
 
-// nginx terminates TLS in production; without this Express sees plain HTTP
-// and refuses to set a Secure cookie.
-app.set('trust proxy', 1);
+// Count the proxies in front of us, do not guess. In the public deployment
+// Caddy terminates TLS and forwards to the client nginx, which forwards here —
+// two hops. Laptop prod mode has only nginx, so it is one, which is the default.
+//
+// A count rather than `true`: `trust proxy: true` makes Express believe the
+// leftmost X-Forwarded-For entry, and the client writes that header. Both
+// failure modes here are silent — too few hops and req.ip is a bridge address,
+// so every per-IP limiter shares one bucket and the Secure cookie is never set;
+// too many, or `true`, and a visitor can forge the address they are limited by.
+app.set('trust proxy', trustProxyHops());
 
 app.use(helmet());
 // No CORS middleware. The site and its API are same-origin in both

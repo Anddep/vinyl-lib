@@ -27,6 +27,9 @@ services:
       # The origin the browser sees. Every OAuth redirect_uri is built from it,
       # so it must match what is registered at the provider exactly.
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      # How many proxies sit in front of Express. Wrong value, silent failure:
+      # the per-IP limiters collapse into one bucket and sign-in stops working.
+      - TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}

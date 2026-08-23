@@ -116,6 +116,24 @@ export function maxSignupsPerHour(): number {
   return parseCount(process.env.MAX_SIGNUPS_PER_HOUR, 20);
 }
 
+/**
+ * How many reverse proxies sit in front of Express.
+ *
+ * A count, never `true`. With `trust proxy: true` Express believes the leftmost
+ * X-Forwarded-For entry unconditionally, and that entry is a header the client
+ * writes — which would hand any visitor the ability to forge their own address
+ * and walk straight through the per-IP limiters that exist to bound them.
+ *
+ * Laptop prod mode has one proxy (nginx). The public deployment has two, since
+ * Caddy terminates TLS in front of nginx, so this is configuration rather than
+ * a constant. Get it wrong and nothing errors: req.ip becomes a container's
+ * bridge address, every limiter shares one bucket, and req.protocol reads as
+ * http so the Secure session cookie is never sent and sign-in fails silently.
+ */
+export function trustProxyHops(): number {
+  return parseCount(process.env.TRUST_PROXY_HOPS, 1);
+}
+
 export function limits(): Limits {
   return {
     maxUploadBytes: parseCount(process.env.MAX_UPLOAD_BYTES, 5 * 1024 * 1024),
