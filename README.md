@@ -30,7 +30,8 @@ npm install   # sets up local tooling: workspace deps, ESLint/Prettier, Husky ho
 Adjust `.env` if you need different ports or credentials — every value the stack uses comes from that file.
 
 > Day-to-day commands, troubleshooting and backups live in
-> **[RUNNING.md](RUNNING.md)**.
+> **[RUNNING.md](RUNNING.md)**. Putting it on the internet lives in
+> **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ### Run in dev mode (hot reload)
 
@@ -312,6 +313,24 @@ Each workspace (`client/package.json`, `server/package.json`) also exposes its o
 The `admin:hash` and `admin:set-password` scripts are gone: there is no password
 to set. See [Accounts](#accounts).
 
-## CI
+## CI and deployment
 
-`.github/workflows/ci.yml` runs on every push and pull request: installs dependencies, then runs `npm run lint` and `npm run build` for both workspaces. It does not run the Docker stack.
+Four workflows, chained so that each gates the next.
+
+| Workflow     | When                         | What                                                                                                                |
+| ------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`     | every push and pull request  | lint, test and build both workspaces against a real Postgres; audit dependencies; scan the full history for secrets |
+| `codeql.yml` | push, pull request, weekly   | semantic analysis of both workspaces                                                                                |
+| `build.yml`  | after CI passes on `main`    | build `linux/arm64` images, push to GHCR with an SBOM and provenance, emit digests                                  |
+| `deploy.yml` | after Build passes on `main` | deploy those digests to the server, migrate, health-check, roll back on failure                                     |
+
+A push to `main` therefore reaches the public site with no further action, and a
+version that does not come up healthy is replaced by the previous one
+automatically.
+
+**[DEPLOYMENT.md](DEPLOYMENT.md)** is the runbook: provisioning from nothing,
+the DNS and OAuth values to register, deploying, rolling back, rotating secrets,
+changing the domain, and what to do when something is wrong.
+
+> There are **no backups**. The collection lives in one place. DEPLOYMENT.md
+> says what that means and what it would take to change.

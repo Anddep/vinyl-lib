@@ -1,3 +1,14 @@
+# Production mode ON A LAPTOP: built images, nginx serving compiled assets,
+# the server running compiled JavaScript.
+#
+# This is NOT what is deployed. The deployed topology is
+# docker-compose.deploy.yml, which adds Caddy, takes its images from GHCR by
+# digest, and publishes no port but Caddy's. Edit that file for changes to the
+# real deployment; this one only affects `npm run prod`.
+#
+# One consequence worth knowing: Caddy sets the Content-Security-Policy, so
+# running this locally serves no CSP at all.
+
 services:
   client:
     build:
