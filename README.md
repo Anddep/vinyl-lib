@@ -291,6 +291,7 @@ project-root/
 - **Branch naming**: `feat/<short-description>`, `fix/<short-description>`, `chore/<short-description>` (mirrors the commit prefixes below).
 - **Commit messages** follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.
 - **Pre-commit hook**: Husky + lint-staged run automatically on `git commit`, linting and formatting only the files you staged in whichever workspace(s) they belong to. A failing lint blocks the commit — fix the reported issues (or let `--fix` resolve them) and commit again.
+- **Markdown caveat — no fenced code inside a task-list item.** Prettier (every 3.x release, and the 4.0 alphas) silently destroys a fenced code block indented underneath a `- [ ]` / `- [x]` checklist item: the triple backticks are rewritten as single backticks and the block collapses into plain paragraph text. Ordinary `-` and `1.` bullets are unaffected — only task-list items. Because the pre-commit hook formats every staged `*.md`, this corrupts the file at commit time with no warning. In checklist-style docs (such as `docs/superpowers/plans/`), keep code blocks at column 0, outside the `- [ ]` item, or use a plain bullet instead.
 - No remote beyond `origin` is assumed by this scaffold. If you're starting a new repo from this template elsewhere:
   ```bash
   git remote add origin <url>
