@@ -462,23 +462,23 @@ Both scripts are the operator's, not CI's. They live in the repo so they are rev
 
 **Files:** `deploy/bootstrap.sh`
 
-- [ ] **Step 1: Preamble**
+- [x] **Step 1: Preamble**
 
 `set -euo pipefail`, require root, require Ubuntu 24.04 (warn and continue elsewhere — it is a portability contract, not a lock), and echo a plan of what will happen.
 
-- [ ] **Step 2: Packages and Docker**
+- [x] **Step 2: Packages and Docker**
 
 `ca-certificates`, `curl`, `gnupg`, `ufw`, `fail2ban`, `unattended-upgrades`, `iptables-persistent`. Then Docker CE from Docker's own apt repository (arm64) with the compose plugin — Ubuntu's `docker.io` lags and ships no compose v2.
 
-- [ ] **Step 3: Timezone**
+- [x] **Step 3: Timezone**
 
 `timedatectl set-timezone Europe/Kyiv`, so the reboot window in Step 11 means what it says.
 
-- [ ] **Step 4: The `deploy` user**
+- [x] **Step 4: The `deploy` user**
 
 Create if absent, home `/opt/vinyl-lib`, add to `docker`. Comment the consequence explicitly: docker group membership is root-equivalent — a member can `docker run -v /:/host --privileged` and own the machine — and the only thing containing it is the forced command in Task 10.
 
-- [ ] **Step 5: Docker daemon config**
+- [x] **Step 5: Docker daemon config**
 
 ```json
 {
@@ -490,11 +490,11 @@ Create if absent, home `/opt/vinyl-lib`, add to `docker`. Comment the consequenc
 
 Comment that rotation is a data-integrity control rather than housekeeping: `morgan('combined')` writes a line per request, the default driver never rotates, and a full boot volume does not stop nginx — it stops Postgres writing, mid-transaction. Restart the daemon only if the file changed.
 
-- [ ] **Step 6: Swap**
+- [x] **Step 6: Swap**
 
 4 GB at `/swapfile` if absent, `vm.swappiness=10` via `/etc/sysctl.d/`, an `fstab` entry added idempotently. Comment that this is for Postgres under memory pressure and not for builds — nothing builds here — and that without it the OOM killer reliably picks the largest process, which is Postgres.
 
-- [ ] **Step 7: SSH hardening, with the guard that prevents a lockout**
+- [x] **Step 7: SSH hardening, with the guard that prevents a lockout**
 
 First, verify `~deploy/.ssh/authorized_keys` exists and is non-empty. **Abort with a clear message if not.** Disabling password authentication on a box with no working key installed is the single most common way to permanently lose a server, and it is entirely preventable with one check.
 
@@ -510,7 +510,7 @@ AllowUsers deploy ubuntu
 
 Run `sshd -t` before reloading. Reload, never restart.
 
-- [ ] **Step 8: Firewall, both layers**
+- [x] **Step 8: Firewall, both layers**
 
 UFW: default deny incoming, allow outgoing, allow 22, 80, 443, `--force enable`.
 
@@ -522,29 +522,29 @@ Comment why UFW alone is not enough: Docker writes its own iptables rules and th
 
 Persist with `netfilter-persistent save`.
 
-- [ ] **Step 9: Clear the rules Oracle's image ships**
+- [x] **Step 9: Clear the rules Oracle's image ships**
 
 Oracle's Ubuntu images arrive with a populated `netfilter-persistent` ruleset whose `INPUT` chain ends in `REJECT`, ahead of anything UFW adds. Clear it and let UFW own `INPUT`.
 
 Comment the symptom so it is recognisable: `curl localhost` works on the box, `curl` from outside hangs, and `ufw status` shows 80 and 443 allowed. Write the step so it finds nothing and does nothing on a host without it.
 
-- [ ] **Step 10: fail2ban**
+- [x] **Step 10: fail2ban**
 
 `/etc/fail2ban/jail.d/sshd.local` with `backend = systemd`, `maxretry = 5`, `bantime = 1h`. Comment that with password authentication off this is not stopping a credential guess — it is stopping the background noise of the internet from filling the journal and eating the CPU of a two-core box.
 
-- [ ] **Step 11: unattended-upgrades**
+- [x] **Step 11: unattended-upgrades**
 
 Security origins only, `Unattended-Upgrade::Automatic-Reboot "true"`, `Automatic-Reboot-Time "04:30"`. Comment that the automatic reboot is deliberate — a kernel update downloaded but never activated is a patch that was not applied — and that `restart: unless-stopped` brings the stack back without help.
 
-- [ ] **Step 12: Directory layout**
+- [x] **Step 12: Directory layout**
 
 `/opt/vinyl-lib` owned by `deploy`, plus `pre-migrate/`. Do **not** create or touch `.env`: that is the operator's, by hand, at mode 0600.
 
-- [ ] **Step 13: Closing summary**
+- [x] **Step 13: Closing summary**
 
 Print what was done and what the operator must still do by hand — install the deploy key with its forced-command restrictions, write `.env`, open 80/443 in the OCI security list.
 
-- [ ] **Step 14: Verify idempotency, which is the point of the whole task**
+- [x] **Step 14: Verify idempotency, which is the point of the whole task**
 
 Run it twice on a scratch VM. The second run must change nothing and must not error.
 
@@ -556,7 +556,7 @@ sshd -T | grep -i passwordauthentication
 iptables -S DOCKER-USER
 ```
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 `feat: harden the host from a script that can be run twice`
 
@@ -566,7 +566,7 @@ iptables -S DOCKER-USER
 
 **Files:** `deploy/remote-deploy.sh`
 
-- [ ] **Step 1: Validate the request**
+- [x] **Step 1: Validate the request**
 
 Read `SSH_ORIGINAL_COMMAND`. Accept **only** a strict match:
 
@@ -576,47 +576,47 @@ Read `SSH_ORIGINAL_COMMAND`. Accept **only** a strict match:
 
 Anything else: log it and exit non-zero. Comment that this is the whole security boundary — the `deploy` user is in the `docker` group and therefore root-equivalent, so what the key can _invoke_ is what defines the blast radius.
 
-- [ ] **Step 2: Install the config from stdin**
+- [x] **Step 2: Install the config from stdin**
 
 Read a tar — a forced command still receives stdin — extract to a temp directory, and accept **only** the filenames `docker-compose.deploy.yml` and `Caddyfile`. Reject any other member, and reject absolute paths and `..`. Validate with `docker compose -f <tmp> config -q` before installing. This is what lets the topology ship with the deploy while the key still cannot open a shell.
 
-- [ ] **Step 3: Record the previous digests**
+- [x] **Step 3: Record the previous digests**
 
 Copy `.images` to `.images.prev` **before anything changes**, then write the new digests to `.images`.
 
-- [ ] **Step 4: Pull**
+- [x] **Step 4: Pull**
 
 `docker compose pull`. Failing here means a bad digest or a registry problem and nothing has changed yet, so exit without rolling back — there is nothing to roll back to.
 
-- [ ] **Step 5: Bring the database up**
+- [x] **Step 5: Bring the database up**
 
 `docker compose up -d db --wait`.
 
-- [ ] **Step 6: Pre-migration dump**
+- [x] **Step 6: Pre-migration dump**
 
 `pg_dump` to `pre-migrate/<utc-timestamp>.sql.gz`, pruned to the newest five. Comment honestly, per spec §11.2: **this is rollback machinery, not a backup** — same disk as the database it dumps, nothing captured between deploys, and no uploads.
 
-- [ ] **Step 7: Migrate**
+- [x] **Step 7: Migrate**
 
 `docker compose run --rm server npx prisma migrate deploy`. A one-shot container, **before** the new server starts. Never `migrate dev`, which is interactive, can generate a migration from a schema diff, and can reset the database.
 
-- [ ] **Step 8: Up**
+- [x] **Step 8: Up**
 
 `docker compose up -d --remove-orphans`. Comment: `up -d`, never `restart` — `restart` reuses the container's existing environment, so a changed `.env` or image appears to deploy and changes nothing.
 
-- [ ] **Step 9: Health poll**
+- [x] **Step 9: Health poll**
 
 `curl -fsS "$PUBLIC_BASE_URL/api/health"` expecting `"status":"ok"`, roughly 30 attempts at 2-second intervals. Through the **public URL**, not localhost: that path exercises DNS, Caddy, TLS, nginx, Express and Postgres, which is the thing being claimed to work.
 
-- [ ] **Step 10: Roll back on failure**
+- [x] **Step 10: Roll back on failure**
 
 Restore `.images.prev`, `up -d`, re-poll, and exit non-zero either way so the workflow fails loudly. Log every step — this output is all the operator gets.
 
-- [ ] **Step 11: Verify locally before it ever runs remotely**
+- [x] **Step 11: Verify locally before it ever runs remotely**
 
 Drive the script by hand on the laptop with a fake `SSH_ORIGINAL_COMMAND` and locally built images. Test four cases: the happy path; a malformed command is refused; a tar containing `../evil` is refused; a bad digest rolls back and the site stays up.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 `feat: deploy by digest, with a health gate and an automatic rollback`
 
