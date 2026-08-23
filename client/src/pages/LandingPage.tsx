@@ -8,6 +8,8 @@ import styles from './LandingPage.module.css';
 /** Every `?error=` the OAuth callback can redirect back with. */
 const MESSAGES: Record<string, string> = {
   state: 'That sign-in link expired. Try again.',
+  no_session:
+    'Your browser did not send the sign-in session back. That usually means you started at a different address than the one sign-in returns to — localhost and 127.0.0.1 are different addresses as far as cookies are concerned.',
   denied: 'Sign-in was cancelled.',
   provider: 'That provider could not be reached. Try again in a moment.',
   session: 'Something went wrong starting your session. Try again.',
