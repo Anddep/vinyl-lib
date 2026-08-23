@@ -107,9 +107,18 @@ authRouter.get(
       return;
     }
 
+    // Told apart deliberately. No handshake at all is overwhelmingly a cookie
+    // that did not come back — the visitor started at a different origin than
+    // PUBLIC_BASE_URL, localhost against 127.0.0.1 being the classic — and that
+    // has a specific fix. A handshake whose state does not match is the case
+    // the parameter exists for.
+    if (handshake === null) {
+      res.redirect('/?error=no_session');
+      return;
+    }
+
     const state = req.query.state;
     if (
-      handshake === null ||
       handshake.provider !== provider.id ||
       typeof state !== 'string' ||
       state !== handshake.state
