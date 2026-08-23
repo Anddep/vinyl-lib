@@ -76,17 +76,17 @@ Nothing here touches infrastructure. Each task is a behaviour change the product
 
 **Files:** `server/src/config/env.ts`, `server/src/app.ts`, `server/tests/config/env.test.ts`, `docker-compose.yml`, `docker-compose.override.yml`, `.env.example`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `server/tests/config/env.test.ts`, add a describe block for `trustProxyHops()` covering: unset returns `1`; `'2'` returns `2`; `''` returns `1` (Compose substitutes an empty string for an unset variable — the caution `parseCount` already documents); `'0'` returns `1`, because zero proxies is not a meaningful production value and reads as a typo; `'abc'` throws.
 
-- [ ] **Step 2: Run it to confirm it fails**
+- [x] **Step 2: Run it to confirm it fails**
 
 ```bash
 npm test -w server -- env.test
 ```
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `server/src/config/env.ts`, following the shape of the existing `maxSignupsPerHour()` — read at call time rather than frozen onto `env`, so a test can vary it with `vi.stubEnv`:
 
@@ -107,15 +107,15 @@ export function trustProxyHops(): number {
 }
 ```
 
-- [ ] **Step 4: Use it**
+- [x] **Step 4: Use it**
 
 In `server/src/app.ts`, replace the hardcoded `1` with `trustProxyHops()` and rewrite the comment to name both proxies and say why it is a count rather than `true`.
 
-- [ ] **Step 5: Thread it through Compose**
+- [x] **Step 5: Thread it through Compose**
 
 Add `- TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS}` to the `server` `environment:` list in **both** `docker-compose.yml` and `docker-compose.override.yml`. The override replaces the base list rather than extending it, so both need it. Add it to `.env.example` with a comment naming the dev value (1) and the deployed value (2).
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 npm test -w server
@@ -127,7 +127,7 @@ Then confirm the variable actually arrives, which is the check that catches the 
 docker compose up -d && docker compose exec server printenv TRUST_PROXY_HOPS
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 `fix: count both proxies when resolving the client address`
 
@@ -137,7 +137,7 @@ docker compose up -d && docker compose exec server printenv TRUST_PROXY_HOPS
 
 **Files:** `server/prisma/schema.prisma`
 
-- [ ] **Step 1: Add the target**
+- [x] **Step 1: Add the target**
 
 ```prisma
 generator client {
@@ -149,17 +149,17 @@ generator client {
 }
 ```
 
-- [ ] **Step 2: Confirm nothing broke locally**
+- [x] **Step 2: Confirm nothing broke locally**
 
 ```bash
 npm run prisma:generate -w server && npm test -w server
 ```
 
-- [ ] **Step 3: Verify on the real target — not by reading the config**
+- [x] **Step 3: Verify on the real target — not by reading the config**
 
 Deferred to Task 4 Step 6, where the built arm64 image runs and `/api/health` must answer `db: connected`. That response is the first thing that actually loads the query engine, so it is the only honest test. Note the dependency in the commit body.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 `fix: generate the query engine for the deployed platform`
 
@@ -169,23 +169,23 @@ Deferred to Task 4 Step 6, where the built arm64 image runs and `/api/health` mu
 
 **Files:** `server/package.json`, `package-lock.json`
 
-- [ ] **Step 1: Move it**
+- [x] **Step 1: Move it**
 
 `prisma` from `devDependencies` to `dependencies` in `server/package.json`, same version range.
 
-- [ ] **Step 2: Refresh the lockfile**
+- [x] **Step 2: Refresh the lockfile**
 
 ```bash
 npm install
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 npm ls prisma -w server && npm test -w server
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 `chore: keep the prisma CLI in the production dependency tree`
 
@@ -197,7 +197,7 @@ In the body, record the rejected alternative — a separate migrate image built 
 
 **Files:** `server/Dockerfile`, `client/Dockerfile`
 
-- [ ] **Step 1: Record the baseline**
+- [x] **Step 1: Record the baseline**
 
 ```bash
 docker build -f server/Dockerfile --target prod -t vinyl-server:before . && docker image ls vinyl-server
@@ -205,11 +205,11 @@ docker build -f server/Dockerfile --target prod -t vinyl-server:before . && dock
 
 That number is the verification for Step 5.
 
-- [ ] **Step 2: `npm ci` in both deps stages**
+- [x] **Step 2: `npm ci` in both deps stages**
 
 Replace `RUN npm install` in `server/Dockerfile` and `client/Dockerfile`. `npm ci` requires the lockfile to agree with the manifests and fails loudly when it does not, which is the point.
 
-- [ ] **Step 3: Add a pruned stage to `server/Dockerfile`**
+- [x] **Step 3: Add a pruned stage to `server/Dockerfile`**
 
 ```dockerfile
 # ---- prod-deps: runtime dependencies only ----
@@ -222,7 +222,7 @@ COPY server/package.json server/package.json
 RUN npm ci --omit=dev
 ```
 
-- [ ] **Step 4: Rewrite the final stage**
+- [x] **Step 4: Rewrite the final stage**
 
 Copy from `prod-deps` rather than `build`, and bring the generated Prisma client across — a pruned install never ran `prisma generate`, so `.prisma` does not exist in it:
 
@@ -247,7 +247,7 @@ EXPOSE 4000
 CMD ["node", "dist/index.js"]
 ```
 
-- [ ] **Step 5: Verify the prune actually pruned**
+- [x] **Step 5: Verify the prune actually pruned**
 
 ```bash
 docker run --rm --entrypoint sh vinyl-server:after -c 'ls node_modules/typescript 2>&1 | head -1'
@@ -255,7 +255,7 @@ docker run --rm --entrypoint sh vinyl-server:after -c 'ls node_modules/typescrip
 
 `typescript` must be absent. Compare the image size against Step 1.
 
-- [ ] **Step 6: Verify arm64 end to end — this also verifies Task 2**
+- [x] **Step 6: Verify arm64 end to end — this also verifies Task 2**
 
 ```bash
 docker buildx build --platform linux/arm64 -f server/Dockerfile --target prod -t vinyl-server:arm64 --load .
@@ -263,7 +263,7 @@ docker buildx build --platform linux/arm64 -f server/Dockerfile --target prod -t
 
 Run it against a Postgres container and poll `/api/health` until it answers `{"status":"ok","db":"connected"}`. Anything less does not exercise the query engine.
 
-- [ ] **Step 7: Verify uploads still write as non-root**
+- [x] **Step 7: Verify uploads still write as non-root**
 
 With the stack up, upload a cover through the UI, or:
 
@@ -273,7 +273,7 @@ docker compose exec server sh -c 'touch /app/server/uploads/probe && rm /app/ser
 
 A permission error here means the `chown` ordering in Step 4 is wrong.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 `build: install from the lockfile and ship only runtime dependencies`
 
