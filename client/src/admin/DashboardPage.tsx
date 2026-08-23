@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
-import { getSetup, getStats, getWishlist } from '../api/client';
+import { ownCollection } from '../api/own';
 import { useResource } from '../hooks/useResource';
 import styles from './DashboardPage.module.css';
 
 export default function DashboardPage(): JSX.Element {
-  const stats = useResource(getStats);
-  const wishlist = useResource(getWishlist);
-  const setup = useResource(getSetup);
+  const stats = useResource(ownCollection.getStats);
+  const wishlist = useResource(ownCollection.getWishlist);
+  const setup = useResource(ownCollection.getSetup);
 
   const tiles = [
     { to: '/admin/records', label: 'Records', value: stats.data?.totalRecords },

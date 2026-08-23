@@ -44,24 +44,49 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const getRecentRecords = (): Promise<VinylRecord[]> =>
-  request<VinylRecord[]>('/records?sort=addedAt&limit=6');
-
-export const getStats = (): Promise<Stats> => request<Stats>('/stats');
+/** Whose collection a set of reads is about. */
+export type Scope = { kind: 'own' } | { kind: 'public'; slug: string };
 
 export interface Genre {
   name: string;
   count: number;
 }
 
-/** Genres actually present in the collection — drives the homepage filter. */
-export const getGenres = (): Promise<Genre[]> => request<Genre[]>('/genres');
-export const getWishlist = (): Promise<WishlistItem[]> => request<WishlistItem[]>('/wishlist');
-export const getSetup = (): Promise<SetupItem[]> => request<SetupItem[]>('/setup');
+export interface CollectionApi {
+  getRecords: () => Promise<VinylRecord[]>;
+  getRecentRecords: () => Promise<VinylRecord[]>;
+  getStats: () => Promise<Stats>;
+  getGenres: () => Promise<Genre[]>;
+  getWishlist: () => Promise<WishlistItem[]>;
+  getSetup: () => Promise<SetupItem[]>;
+  getSettings: () => Promise<SiteSettings>;
+}
+
+/**
+ * The seven collection reads, bound to one owner.
+ *
+ * The two scopes differ only in a path prefix, which is the point: the section
+ * components take data as props and never learn whose it is, so the public
+ * collection page and the admin dashboard render from the same code.
+ *
+ * Mutations are deliberately not here. They are always the signed-in user's
+ * own, and giving them a scope would imply one that does not exist.
+ */
+export function collectionApi(scope: Scope): CollectionApi {
+  const base = scope.kind === 'own' ? '' : `/u/${encodeURIComponent(scope.slug)}`;
+
+  return {
+    getRecords: () => request<VinylRecord[]>(`${base}/records`),
+    getRecentRecords: () => request<VinylRecord[]>(`${base}/records?sort=addedAt&limit=6`),
+    getStats: () => request<Stats>(`${base}/stats`),
+    getGenres: () => request<Genre[]>(`${base}/genres`),
+    getWishlist: () => request<WishlistItem[]>(`${base}/wishlist`),
+    getSetup: () => request<SetupItem[]>(`${base}/setup`),
+    getSettings: () => request<SiteSettings>(`${base}/settings`),
+  };
+}
 
 /* ---- Record CRUD ---- */
-
-export const getRecords = (): Promise<VinylRecord[]> => request<VinylRecord[]>('/records');
 
 export const getRecord = (id: number): Promise<VinylRecord> =>
   request<VinylRecord>(`/records/${id}`);
@@ -93,18 +118,46 @@ export const deleteSetupItem = (id: number): Promise<void> =>
 
 /* ---- Settings ---- */
 
-export const getSettings = (): Promise<SiteSettings> => request<SiteSettings>('/settings');
-
 export const updateSettings = (data: SiteSettings): Promise<SiteSettings> =>
   request<SiteSettings>('/settings', { method: 'PATCH', body: JSON.stringify(data) });
 
+/* ---- Profile and account ---- */
+
+/** What a visitor is told about a collection's owner. */
+export interface Profile {
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export const getProfile = (slug: string): Promise<Profile> =>
+  request<Profile>(`/u/${encodeURIComponent(slug)}`);
+
+export interface AuthUser {
+  id: number;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isPublic: boolean;
+}
+
+export interface AccountUpdate {
+  slug?: string;
+  displayName?: string;
+  isPublic?: boolean;
+}
+
+export const updateAccount = (data: AccountUpdate): Promise<AuthUser> =>
+  request<AuthUser>('/account', { method: 'PATCH', body: JSON.stringify(data) });
+
 /* ---- Auth ---- */
 
-export const getAuthStatus = (): Promise<{ authenticated: boolean }> =>
-  request<{ authenticated: boolean }>('/auth/me');
+/** `{ user: null }` when signed out — "nobody" is an answer, not an error. */
+export const getAuthStatus = (): Promise<{ user: AuthUser | null }> =>
+  request<{ user: AuthUser | null }>('/auth/me');
 
-export const login = (password: string): Promise<void> =>
-  request<void>('/auth/login', { method: 'POST', body: JSON.stringify({ password }) });
+/** Which providers the server can actually complete a sign-in with. */
+export const getProviders = (): Promise<string[]> => request<string[]>('/auth/providers');
 
 export const logout = (): Promise<void> => request<void>('/auth/logout', { method: 'POST' });
 

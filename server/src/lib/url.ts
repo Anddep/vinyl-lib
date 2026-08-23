@@ -21,7 +21,12 @@ export const safeUrl = z.string().refine(
 );
 
 /**
- * Where an image can come from: an uploaded file at /uploads/<name>, or an
- * external URL subject to the same protocol allowlist as any other link.
+ * Where an image can come from: an uploaded file, or an external URL subject to
+ * the same protocol allowlist as any other link.
+ *
+ * The owner segment is optional because files written before uploads became
+ * owner-scoped still sit flat in the directory and their coverUrl values were
+ * deliberately not rewritten. Exactly one optional numeric segment, so the
+ * pattern cannot be talked into matching a traversal.
  */
-export const imageSource = z.union([safeUrl, z.string().regex(/^\/uploads\/[\w.-]+$/)]);
+export const imageSource = z.union([safeUrl, z.string().regex(/^\/uploads\/(?:\d+\/)?[\w.-]+$/)]);

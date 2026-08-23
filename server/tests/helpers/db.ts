@@ -9,6 +9,6 @@ export const prisma = new PrismaClient();
  */
 export async function resetDb(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Record", "WishlistItem", "SetupItem", "SiteSetting" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Record", "WishlistItem", "SetupItem", "SiteSetting", "Upload", "Invite", "OAuthIdentity", "User" RESTART IDENTITY CASCADE',
   );
 }

@@ -194,27 +194,30 @@ const setup = [
   },
 ];
 
-export async function loadFixture(client: PrismaClient): Promise<void> {
-  // Records upsert on slug so a rerun updates rather than duplicating.
+export async function loadFixture(client: PrismaClient, ownerId: number): Promise<void> {
+  // Records upsert on (owner, slug) so a rerun updates rather than duplicating,
+  // and so loading the same collection for a second owner is not a collision.
   for (const record of records) {
+    const owned = { ...record, ownerId };
     await client.record.upsert({
-      where: { slug: record.slug },
-      create: record,
-      update: record,
+      where: { ownerId_slug: { ownerId, slug: record.slug } },
+      create: owned,
+      update: owned,
     });
   }
 
   // Ordered lists are short and position-keyed, so replacing them wholesale is
-  // simpler than reconciling and cannot leave a stale row behind.
-  await client.wishlistItem.deleteMany();
-  await client.wishlistItem.createMany({ data: wishlist });
+  // simpler than reconciling and cannot leave a stale row behind. Scoped to the
+  // owner: an unscoped deleteMany would wipe every other owner's rows.
+  await client.wishlistItem.deleteMany({ where: { ownerId } });
+  await client.wishlistItem.createMany({ data: wishlist.map((row) => ({ ...row, ownerId })) });
 
-  await client.setupItem.deleteMany();
-  await client.setupItem.createMany({ data: setup });
+  await client.setupItem.deleteMany({ where: { ownerId } });
+  await client.setupItem.createMany({ data: setup.map((row) => ({ ...row, ownerId })) });
 
   await client.siteSetting.upsert({
-    where: { key: 'collectingSince' },
-    create: { key: 'collectingSince', value: '2009' },
+    where: { ownerId_key: { ownerId, key: 'collectingSince' } },
+    create: { ownerId, key: 'collectingSince', value: '2009' },
     update: {},
   });
 }

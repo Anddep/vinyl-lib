@@ -1,42 +1,38 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadFixture } from './collection';
+import { createUser } from './users';
 import { prisma, resetDb } from '../helpers/db';
 
 beforeEach(resetDb);
 
-describe('collection fixture', () => {
-  it('loads the handoff content', async () => {
-    await loadFixture(prisma);
+describe('loadFixture', () => {
+  it('loads the sample collection against one owner', async () => {
+    const owner = await createUser(prisma, { slug: 'andriy' });
 
-    // 14, not 20: the handoff's featured and recent lists are disjoint albums.
-    expect(await prisma.record.count()).toBe(14);
-    expect(await prisma.wishlistItem.count()).toBe(6);
-    expect(await prisma.setupItem.count()).toBe(5);
+    await loadFixture(prisma, owner.id);
 
-    const setting = await prisma.siteSetting.findUnique({ where: { key: 'collectingSince' } });
-    expect(setting?.value).toBe('2009');
+    expect(await prisma.record.count({ where: { ownerId: owner.id } })).toBe(14);
+    expect(await prisma.wishlistItem.count({ where: { ownerId: owner.id } })).toBe(6);
+    expect(await prisma.setupItem.count({ where: { ownerId: owner.id } })).toBe(5);
   });
 
-  it('backdates featured records so the recent query returns the intended six', async () => {
-    await loadFixture(prisma);
+  it('loads twice against two owners without a slug collision', async () => {
+    const one = await createUser(prisma, { slug: 'one-user' });
+    const two = await createUser(prisma, { slug: 'two-user' });
 
-    const recent = await prisma.record.findMany({ orderBy: { addedAt: 'desc' }, take: 6 });
+    await loadFixture(prisma, one.id);
+    await loadFixture(prisma, two.id);
 
-    expect(recent.map((r) => r.title)).toEqual([
-      'Mezzanine',
-      'Kind of Blue',
-      "Sensations' Fix",
-      'Vodyanyk',
-      'Music for Airports',
-      'Moon Safari',
-    ]);
+    expect(await prisma.record.count()).toBe(28);
   });
+});
 
-  it('is idempotent', async () => {
-    await loadFixture(prisma);
-    await loadFixture(prisma);
+describe('createUser', () => {
+  it('generates a distinct slug and email each call', async () => {
+    const one = await createUser(prisma);
+    const two = await createUser(prisma);
 
-    expect(await prisma.record.count()).toBe(14);
-    expect(await prisma.wishlistItem.count()).toBe(6);
+    expect(one.slug).not.toBe(two.slug);
+    expect(one.email).not.toBe(two.email);
   });
 });

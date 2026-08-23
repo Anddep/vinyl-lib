@@ -1,28 +1,49 @@
 import { Router, type Request, type Response } from 'express';
 import type { ZodType } from 'zod';
 import { asyncHandler } from './asyncHandler';
+import { ownerOf } from './owner';
+import { enforceCeiling } from './quota';
 import { parseId } from './params';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireUser } from '../middleware/requireUser';
 import { validate } from '../middleware/validate';
 
 /** Body already parsed and stripped by the zod schema. */
 type ValidatedBody = Record<string, unknown>;
+
+/** Every query this factory makes is filtered by owner. The type says so. */
+type OwnerScope = { ownerId: number };
 
 /**
  * The slice of a Prisma model delegate this router needs.
  *
  * Declared structurally rather than importing Prisma's generated delegate
  * types: those are deeply generic and would drag the whole payload machinery
- * through a factory whose four calls all key on `id`.
+ * through a factory that only ever needs five calls.
+ *
+ * The important part is that `OwnerScope` is intersected into every `where`.
+ * An unscoped read, update or delete does not typecheck, so a future resource
+ * cannot forget the ownership check the way it could if this were a separate
+ * lookup the route had to remember to call.
+ *
+ * `create` is the exception, and deliberately so: Prisma's generated create
+ * input is a union of the checked form (`owner: { connect }`) and the unchecked
+ * form (`ownerId`), and only the second has an ownerId — so intersecting
+ * OwnerScope here makes every real delegate unassignable. The owner is instead
+ * stamped one line below, inside this factory, where no caller can reach it and
+ * nothing can forget it. `ownership.test.ts` asserts it.
  */
 interface CrudDelegate {
-  findMany(args: { orderBy: Array<Record<string, 'asc' | 'desc'>> }): Promise<unknown[]>;
-  findUnique(args: { where: { id: number } }): Promise<unknown | null>;
-  // `data` is deliberately loose: the zod schema is what guarantees its shape,
-  // and Prisma's generated input types cannot be expressed generically here.
+  findMany(args: {
+    where: OwnerScope;
+    orderBy: Array<Record<string, 'asc' | 'desc'>>;
+  }): Promise<unknown[]>;
+  // findFirst rather than findUnique: { id, ownerId } is not a unique input,
+  // and findFirst says that plainly.
+  findFirst(args: { where: OwnerScope & { id: number } }): Promise<unknown | null>;
+  count(args: { where: OwnerScope }): Promise<number>;
   create(args: { data: ValidatedBody }): Promise<unknown>;
-  update(args: { where: { id: number }; data: ValidatedBody }): Promise<unknown>;
-  delete(args: { where: { id: number } }): Promise<unknown>;
+  update(args: { where: OwnerScope & { id: number }; data: ValidatedBody }): Promise<unknown>;
+  delete(args: { where: OwnerScope & { id: number } }): Promise<unknown>;
 }
 
 interface ResourceRouterOptions {
@@ -33,15 +54,25 @@ interface ResourceRouterOptions {
   delegate: CrudDelegate;
   createSchema: ZodType;
   updateSchema: ZodType;
+  /** Read lazily so a test can vary the ceiling with vi.stubEnv. */
+  max: () => number;
+  /** Plural, for the 409 message: "wishlist items". */
+  plural: string;
+}
+
+export interface ResourceRouters {
+  /**
+   * GET only, no auth. The owner comes from `res.locals`, which the mount is
+   * responsible for setting — see the /api/u/:slug tree.
+   */
+  read: Router;
+  /** GET plus writes, every route behind requireUser. Mounted under /api. */
+  own: Router;
 }
 
 /**
- * List + create + update + delete for a position-ordered content resource.
- *
- * Wishlist and setup rows had byte-identical routers differing only in the
- * model, path and schemas — a fix to one had to be remembered for the other.
- * Records keep their own router: slug generation and the derived "new" flag
- * make them genuinely different.
+ * List, create, update and delete for a position-ordered content resource,
+ * scoped to one owner.
  */
 export function createResourceRouter({
   path,
@@ -49,9 +80,9 @@ export function createResourceRouter({
   delegate,
   createSchema,
   updateSchema,
-}: ResourceRouterOptions): Router {
-  const router = Router();
-
+  max,
+  plural,
+}: ResourceRouterOptions): ResourceRouters {
   /** Resolves the :id param, answering 400 or 404 itself when it cannot. */
   async function resolveId(req: Request, res: Response): Promise<number | null> {
     const id = parseId(req.params.id);
@@ -59,56 +90,86 @@ export function createResourceRouter({
       res.status(400).json({ error: `Invalid ${noun.toLowerCase()} id` });
       return null;
     }
-    if (!(await delegate.findUnique({ where: { id } }))) {
+    // A row that does not exist and a row belonging to someone else are the
+    // same answer. Distinguishing them would let a caller enumerate ids.
+    if (!(await delegate.findFirst({ where: { id, ownerId: ownerOf(res) } }))) {
       res.status(404).json({ error: `${noun} not found` });
       return null;
     }
     return id;
   }
 
-  router.get(
-    `/${path}`,
-    asyncHandler(async (_req: Request, res: Response) => {
-      // position then id: equal positions fall back to insertion order rather
-      // than whatever the query planner happens to return.
-      res.json(await delegate.findMany({ orderBy: [{ position: 'asc' }, { id: 'asc' }] }));
-    }),
-  );
+  const list = asyncHandler(async (_req: Request, res: Response) => {
+    // position then id: equal positions fall back to insertion order rather
+    // than whatever the query planner happens to return.
+    res.json(
+      await delegate.findMany({
+        where: { ownerId: ownerOf(res) },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
 
-  router.post(
+  const read = Router();
+  read.get(`/${path}`, list);
+
+  const own = Router();
+  // requireUser sits on each route rather than on the router, so an unmatched
+  // path under /api still reaches the 404 handler instead of answering 401.
+  own.get(`/${path}`, requireUser, list);
+
+  own.post(
     `/${path}`,
-    requireAuth,
+    requireUser,
     validate(createSchema),
     asyncHandler(async (_req: Request, res: Response) => {
-      res.status(201).json(await delegate.create({ data: res.locals.body as ValidatedBody }));
+      const ownerId = ownerOf(res);
+      const allowed = enforceCeiling(res, {
+        count: await delegate.count({ where: { ownerId } }),
+        max: max(),
+        noun: plural,
+      });
+      if (!allowed) {
+        return;
+      }
+
+      // ownerId last, so a body key of that name cannot win. The zod schemas
+      // strip unknown keys as well, which makes this the second line of defence.
+      const data = { ...(res.locals.body as ValidatedBody), ownerId };
+      res.status(201).json(await delegate.create({ data }));
     }),
   );
 
-  router.patch(
+  own.patch(
     `/${path}/:id`,
-    requireAuth,
+    requireUser,
     validate(updateSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const id = await resolveId(req, res);
       if (id === null) {
         return;
       }
-      res.json(await delegate.update({ where: { id }, data: res.locals.body as ValidatedBody }));
+      res.json(
+        await delegate.update({
+          where: { id, ownerId: ownerOf(res) },
+          data: res.locals.body as ValidatedBody,
+        }),
+      );
     }),
   );
 
-  router.delete(
+  own.delete(
     `/${path}/:id`,
-    requireAuth,
+    requireUser,
     asyncHandler(async (req: Request, res: Response) => {
       const id = await resolveId(req, res);
       if (id === null) {
         return;
       }
-      await delegate.delete({ where: { id } });
+      await delegate.delete({ where: { id, ownerId: ownerOf(res) } });
       res.status(204).end();
     }),
   );
 
-  return router;
+  return { read, own };
 }

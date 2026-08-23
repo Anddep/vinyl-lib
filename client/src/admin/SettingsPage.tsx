@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError, getSettings, updateSettings } from '../api/client';
+import { ApiError, updateSettings } from '../api/client';
+import { ownCollection } from '../api/own';
 import { Button } from '../components/ui/Button';
 import type { SiteSettings } from '../types/collection';
 import { ImageField } from './components/ImageField';
@@ -46,7 +47,8 @@ export default function SettingsPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    getSettings()
+    ownCollection
+      .getSettings()
       .then((settings) => {
         if (!cancelled) {
           setValues(settings);

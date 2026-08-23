@@ -98,3 +98,11 @@
     padding: var(--space-6) var(--gutter);
   }
 }
+
+.who {
+  overflow: hidden;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

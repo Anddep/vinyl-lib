@@ -16,7 +16,7 @@ A full-stack scaffold: React + TypeScript (Vite) client, Express + TypeScript + 
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose (v2, bundled with Docker Desktop)
 - [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/) 20+ (only needed to run `npm install` locally for editor tooling, linting, and Git hooks — not required to run the app itself)
+- [Node.js](https://nodejs.org/) 24+ (only needed to run `npm install` locally for editor tooling, linting, and Git hooks — not required to run the app itself)
 
 ## Getting started
 
@@ -69,63 +69,153 @@ docker compose exec server npx prisma migrate deploy
 docker compose exec server npx prisma generate
 ```
 
-The starter schema (`server/prisma/schema.prisma`) defines a single `Record` model (a vinyl record: title, artist, year) with an initial migration already committed under `server/prisma/migrations/`.
+`server/prisma/schema.prisma` defines the content models — `Record`, `WishlistItem`, `SetupItem` and `SiteSetting`, each owned by a `User` — plus `OAuthIdentity`, `Invite` and `Upload`. Every migration is committed under `server/prisma/migrations/`.
 
-## Admin panel
+## Accounts
 
-The site's content lives in Postgres and is edited at `/admin`. One collector,
-one password — there is no signup and no user table.
+Anyone can sign in with Google or GitHub and keep their own collection. Yours
+lives at `/u/<your address>`; `/admin` edits it. There is no password and no
+signup form — the provider vouches for you, and nothing else does.
 
-### First-time setup
+> **Upgrading from the single-password version?** The migration replaces
+> `session.isAdmin` with a user id, so the existing session is signed out. Set
+> `BOOTSTRAP_OWNER_EMAIL` before you sign in again (see
+> [First boot](#first-boot)) or your existing collection stays unclaimed.
 
-Set the password. This hashes it and writes it into `.env` for you:
+### Registering the providers
 
-```bash
-npm run admin:set-password -w server -- 'your password here'
+At least one is required; configure both and the sign-in screen offers both.
+A provider with a missing id or secret is simply absent — its routes 404 rather
+than offering a button that cannot work.
+
+**Google.** Cloud Console → APIs & Services → Credentials → _Create
+credentials_ → _OAuth client ID_ → **Web application**. Under _Authorised
+redirect URIs_ add the one matching where you run it:
+
+```
+http://localhost:5173/api/auth/google/callback     # development
+https://<your-host>/api/auth/google/callback       # production
 ```
 
-Then add a session secret:
+**GitHub.** Settings → Developer settings → OAuth Apps → _New OAuth App_. The
+_Authorization callback URL_ takes the same two shapes with `github` in place
+of `google`.
 
-```bash
-openssl rand -hex 32
-```
-
-```
-SESSION_SECRET=<the hex string>
-```
-
-Restart the server afterwards — the hash is read once at startup:
-
-```bash
-docker compose up -d server
-```
-
-> Use hex rather than base64 for the secret. Docker Compose interpolates `$` in
-> `.env` values, so a `$` in a secret arrives at the container mangled.
-> `admin:set-password` handles this for the hash by doubling the `$`;
-> `admin:hash` only prints a hash, and you must double the `$` yourself.
-
-### Changing the password later
-
-Same command. Note that **existing sessions stay signed in** — they live in a
-`session` table in Postgres, independent of the password. To sign everyone out
-as well:
-
-```bash
-docker compose exec db psql -U vinyl_lib -c "DELETE FROM session;"
-```
+Google permits `http` on `localhost` and GitHub permits any `http` callback, so
+neither needs a tunnel for local development. Copy the client id and secret of
+each into `.env`, and set `PUBLIC_BASE_URL` to the origin the browser sees — it
+is what the callback URL is built from, and it must match the registration
+exactly.
 
 ### First boot
 
-With the stack running, create the schema:
+Set `BOOTSTRAP_OWNER_EMAIL` to your own verified address **before** signing in
+for the first time, then create the schema:
 
 ```bash
 docker compose exec server npx prisma migrate deploy
 ```
 
-Then open `http://localhost:5173/admin` and add your collection. There is no
-seed command: sample data only exists as a test fixture, so nothing can write
-over content you have curated.
+The migration puts every existing record, wishlist item, setup row and setting
+behind one placeholder owner. The first sign-in with that address claims the
+placeholder rather than starting an empty collection. It can only happen once:
+the claim only matches a row whose email is still unset, and every later
+sign-in resolves to your account before it is reached.
+
+Leave the variable unset and nothing is claimed — the collection simply stays
+at `/u/collection` until you set it and sign in.
+
+### The signup gate
+
+`SIGNUP_MODE` decides who can create an account. It defaults to `invite`, so a
+fresh deployment is not open by accident.
+
+| Value    | Behaviour                                                            |
+| -------- | -------------------------------------------------------------------- |
+| `closed` | Only existing users can sign in. A new identity is refused.          |
+| `invite` | A new account needs an invite code. Existing users sign in normally. |
+| `open`   | Anyone with a verified Google or GitHub email.                       |
+
+Changing it is an env edit and a restart, which is the point: it is the fastest
+lever you have if the site starts attracting the wrong kind of signup.
+
+### Operator recipes
+
+There is no moderation UI. These are the whole of it, and they run in `psql`:
+
+```bash
+docker compose exec db psql -U vinyl_lib
+```
+
+```sql
+-- Issue an invite (SIGNUP_MODE=invite). Hand the code out as
+--   https://<your-host>/?invite=<code>
+INSERT INTO "Invite" (code, "expiresAt")
+VALUES (encode(gen_random_bytes(16), 'base64'), NOW() + INTERVAL '14 days')
+RETURNING code;
+
+-- Suspend an account and sign it out. Both statements: the flag blocks the
+-- next sign-in, the delete revokes the session they already have.
+UPDATE "User" SET "suspendedAt" = NOW() WHERE slug = '<slug>';
+DELETE FROM session WHERE (sess::jsonb ->> 'userId') = '<user id>';
+
+-- List an account's files before deleting it, so they can be removed from the
+-- uploads volume by hand. The app never unlinks.
+SELECT path, bytes FROM "Upload" WHERE "ownerId" = <user id>;
+
+-- Delete an account. Cascades to records, wishlist, setup, settings,
+-- identities and upload rows.
+DELETE FROM "User" WHERE slug = '<slug>';
+```
+
+`encode(..., 'base64')` can produce `+` and `/`, which need URL-encoding when
+you paste the code into an invite link. Generating a fresh code until you get
+one without them is the lazy way out and works fine.
+
+### If you are locked out
+
+There is deliberately no break-glass password: keeping one would re-introduce
+the long-lived shared secret this replaced, and a second path through
+authentication for every future change to check. Anyone who can be locked out
+here has shell access, and the recovery is one statement — attach a provider
+identity you control to the account:
+
+```sql
+INSERT INTO "OAuthIdentity" (provider, "providerUserId", "userId")
+VALUES ('github', '<your github numeric id>', <user id>);
+```
+
+Your GitHub numeric id is the `id` field from `https://api.github.com/users/<login>`.
+For Google it is the `sub` claim, which is easiest to read out of the server log
+during a failed sign-in.
+
+### Limits
+
+Per account: 5,000 records, 500 wishlist items, 100 setup rows, and 150 MB of
+uploads at 5 MB a file. All are `.env` variables, all return a clear error at
+the boundary rather than failing silently.
+
+Signups are capped site-wide per hour rather than per IP — counting per address
+would mean storing one against a sign-in decision. Requests are rate limited
+per IP.
+
+> Rate limits live in the process, so they are correct for one container and
+> quietly half as effective across two. Running more than one replica needs a
+> shared store.
+
+### Sharing your collection
+
+Your collection is public at `/u/<your address>` as soon as you have one. The
+Profile screen changes the address and hides the collection.
+
+Changing the address frees the old one **immediately** and any link you have
+already shared stops working. There is no redirect, on purpose: if someone else
+later takes the freed address, a redirect would either block them from their own
+URL or silently point your old links at a stranger.
+
+Switching a collection to private returns the same not-found page as an address
+nobody has taken, so nobody can tell the difference between hidden and unused.
+You still see your own.
 
 ### What you can edit
 
@@ -135,22 +225,21 @@ over content you have curated.
 | Wishlist     | The Looking For section, with cover art                                        |
 | Setup        | The equipment rows in What it all plays on                                     |
 | Site content | Hero and setup copy and imagery, and Collecting since                          |
+| Profile      | Your display name, your address, and whether the collection is public          |
 
-Three of the four stat cards are **computed** from the records table — total,
-top genre and top artist — so they cannot drift from the data. "Collecting
-since" is a stored setting: the earliest `addedAt` is when a record was entered
-here, not when the collection started.
+Three of the four stat cards are **computed** from your records — total, top
+genre and top artist — so they cannot drift from the data, and each is scoped to
+your own collection. "Collecting since" is a stored setting: the earliest
+`addedAt` is when a record was entered here, not when the collection started.
 
-Hero and setup copy and imagery are editable under Site content. Leave a field
-empty and the original design wording is used instead.
+The genre filter is built from the genres actually in your collection, so a
+genre you invent on a record appears as a chip with no code change, and one no
+record uses stops offering an always-empty filter.
 
-The genre filter on the homepage is built from the genres actually in the
-collection, so a genre you invent on a record appears as a chip with no code
-change, and one no record uses stops offering an always-empty filter.
-
-Record cards link out to whatever URL you set (Discogs, Bandcamp, anywhere).
-A record with no URL renders as a non-interactive card. Covers can be uploaded
-or pasted as a URL; with neither, the striped placeholder from the design shows.
+Record cards link out to whatever URL you set (Discogs, Bandcamp, anywhere), and
+carry `rel="nofollow ugc"` so posting links here earns nobody any search
+ranking. A record with no URL renders as a non-interactive card. Covers can be
+uploaded or pasted as a URL; with neither, the striped placeholder shows.
 
 ## Tests
 
@@ -218,6 +307,9 @@ Root (`package.json`):
 - `npm run lint` — lints both workspaces
 
 Each workspace (`client/package.json`, `server/package.json`) also exposes its own `dev`, `build`, `lint` (and `start`/`preview` respectively).
+
+The `admin:hash` and `admin:set-password` scripts are gone: there is no password
+to set. See [Accounts](#accounts).
 
 ## CI
 
