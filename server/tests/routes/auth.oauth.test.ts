@@ -58,17 +58,31 @@ describe('GET /api/auth/:provider/callback', () => {
     expect(await prisma.user.count()).toBe(1);
   });
 
-  it('rejects a callback with no handshake in the session', async () => {
+  it('reports a missing handshake as a lost session, not an expired link', async () => {
+    // The overwhelmingly common cause is a cookie that did not come back
+    // because the visitor started at a different origin than PUBLIC_BASE_URL,
+    // which has a specific fix worth naming.
     const response = await request(app).get('/api/auth/google/callback?code=c&state=whatever');
 
     expect(response.status).toBe(302);
-    expect(response.headers.location).toBe('/?error=state');
+    expect(response.headers.location).toBe('/?error=no_session');
   });
 
   it('rejects a mismatched state', async () => {
     const agent = request.agent(app);
     await agent.get('/api/auth/google');
 
+    const response = await agent.get('/api/auth/google/callback?code=c&state=not-the-one');
+
+    expect(response.headers.location).toBe('/?error=state');
+  });
+
+  it('reports a state mismatch separately from a missing session', async () => {
+    const agent = request.agent(app);
+    const start = await agent.get('/api/auth/google');
+    expect(start.status).toBe(302);
+
+    // The session is present; only the value is wrong.
     const response = await agent.get('/api/auth/google/callback?code=c&state=not-the-one');
 
     expect(response.headers.location).toBe('/?error=state');
@@ -84,7 +98,8 @@ describe('GET /api/auth/:provider/callback', () => {
     await agent.get(`/api/auth/google/callback?code=c&state=${state}`);
     const replay = await agent.get(`/api/auth/google/callback?code=c&state=${state}`);
 
-    expect(replay.headers.location).toBe('/?error=state');
+    // Consumed, so the second attempt finds no handshake at all.
+    expect(replay.headers.location).toBe('/?error=no_session');
   });
 
   it('rejects a state minted for the other provider', async () => {
