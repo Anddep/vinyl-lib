@@ -632,31 +632,31 @@ Drive the script by hand on the laptop with a fake `SSH_ORIGINAL_COMMAND` and lo
 
 **Files:** `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Add a permissions floor**
+- [x] **Step 1: Add a permissions floor**
 
 `permissions: { contents: read }` at the top level. The default token is read/write across the repository and a lint job needs neither.
 
-- [ ] **Step 2: Pin third-party actions**
+- [x] **Step 2: Pin third-party actions**
 
 To a full commit SHA, with the version in a trailing comment. First-party `actions/*` keep their tags.
 
-- [ ] **Step 3: Add the `audit` job**
+- [x] **Step 3: Add the `audit` job**
 
 `npm ci` then `npm audit --audit-level=high`. `continue-on-error: true`.
 
-- [ ] **Step 4: Add the `secrets` job**
+- [x] **Step 4: Add the `secrets` job**
 
 gitleaks over full history. **`fetch-depth: 0` is not optional** — the default shallow checkout scans one commit and reports clean, which is worse than not running it at all. `continue-on-error: true`.
 
-- [ ] **Step 5: Comment the `continue-on-error` flags as temporary**
+- [x] **Step 5: Comment the `continue-on-error` flags as temporary**
 
 With the reason: a new scanner that blocks `main` on day one teaches everyone to bypass it. Record the removal as a follow-up in `DEPLOYMENT.md`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Push the branch; confirm every job runs and the two new ones report. gitleaks must report 0 findings — it did on 2026-08-23, so anything else means something new landed.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 `ci: add dependency, secret and permission hygiene`
 
@@ -666,19 +666,19 @@ Push the branch; confirm every job runs and the two new ones report. gitleaks mu
 
 **Files:** `.github/workflows/codeql.yml`
 
-- [ ] **Step 1: Write it**
+- [x] **Step 1: Write it**
 
 Language `javascript-typescript`. Triggers: push to `main`, pull requests, and a weekly schedule — the schedule matters because the rule packs improve, so the same code is worth re-scanning. `runs-on: ubuntu-latest`: this analyses source, and the analysis has no architecture. `permissions: { security-events: write, contents: read, actions: read }`.
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Push; confirm the run completes and results appear under Security → Code scanning.
 
-- [ ] **Step 3: Triage what it finds**
+- [x] **Step 3: Triage what it finds**
 
 Do not silence anything without reading it. Record every dismissal with a reason.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 `ci: scan the source with codeql`
 
@@ -688,35 +688,35 @@ Do not silence anything without reading it. Record every dismissal with a reason
 
 **Files:** `.github/workflows/build.yml`
 
-- [ ] **Step 1: Triggers**
+- [x] **Step 1: Triggers**
 
 `workflow_run` of CI completing on `main`, plus tags. Gate the job on `github.event.workflow_run.conclusion == 'success'`.
 
-- [ ] **Step 2: Check out the right commit**
+- [x] **Step 2: Check out the right commit**
 
 `ref: ${{ github.event.workflow_run.head_sha }}`. **A `workflow_run` job checks out the default branch by default, not the commit that triggered it.** Getting this wrong produces a pipeline that looks fine and deploys the wrong commit whenever two pushes land close together.
 
-- [ ] **Step 3: Runner**
+- [x] **Step 3: Runner**
 
 `runs-on: ubuntu-24.04-arm`. Native, not QEMU: a cross-build of Vite plus `tsc` plus `prisma generate` takes upwards of fifteen minutes for no benefit.
 
-- [ ] **Step 4: Permissions**
+- [x] **Step 4: Permissions**
 
 `contents: read`, `packages: write`, `id-token: write`, `attestations: write`.
 
-- [ ] **Step 5: Build and push both images**
+- [x] **Step 5: Build and push both images**
 
 `docker/login-action` to GHCR with `GITHUB_TOKEN`; `docker/setup-buildx-action`; `docker/build-push-action` with `platforms: linux/arm64`, `cache-from` and `cache-to` of `type=gha,mode=max`, tags `sha-<commit>` and `latest`, `sbom: true`, `provenance: mode=max`. All SHA-pinned.
 
-- [ ] **Step 6: Output the digests**
+- [x] **Step 6: Output the digests**
 
 As job outputs. Not the tags — spec §4.4.
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 Temporarily widen the trigger and push. Confirm both images appear in GHCR, that the SBOM and provenance attachments exist, and that the digests are in the job summary. Restore the trigger.
 
-- [ ] **Step 8: Verify no secret reached a layer**
+- [x] **Step 8: Verify no secret reached a layer**
 
 Half of acceptance criterion 6:
 
@@ -726,7 +726,7 @@ docker save ghcr.io/anddep/vinyl-lib-server:latest | tar -xO | strings | grep -c
 
 Repeat for both OAuth client secrets and the database password, on both images. Every count must be 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 `ci: build arm64 images and publish them by digest`
 
@@ -736,23 +736,23 @@ Repeat for both OAuth client secrets and the database password, on both images. 
 
 **Files:** `.github/workflows/deploy.yml`
 
-- [ ] **Step 1: Triggers**
+- [x] **Step 1: Triggers**
 
 `workflow_run` of Build succeeding on `main`, plus `workflow_dispatch` with a `sha` input. That input is the entire rollback interface.
 
-- [ ] **Step 2: Environment**
+- [x] **Step 2: Environment**
 
 `environment: production`. Holds the secrets, and records every deployment against its commit.
 
-- [ ] **Step 3: Resolve the SHA and its digests**
+- [x] **Step 3: Resolve the SHA and its digests**
 
 From `workflow_run.head_sha` or the dispatch input, then resolve that SHA's digests from GHCR with `docker buildx imagetools inspect`. This is what lets any previously built commit be deployed, not only the last one.
 
-- [ ] **Step 4: SSH setup**
+- [x] **Step 4: SSH setup**
 
 Write `SSH_KEY` to a mode-600 temp file. Write `SSH_KNOWN_HOSTS` to a known_hosts file and use it. **Never `StrictHostKeyChecking=no`** — that turns a pinned host key into trust-on-first-use on every run, which discards exactly the protection being paid for.
 
-- [ ] **Step 5: Invoke the forced command**
+- [x] **Step 5: Invoke the forced command**
 
 Piping the config tar on stdin:
 
@@ -762,15 +762,15 @@ tar -cf - docker-compose.deploy.yml -C deploy Caddyfile |
     "$SSH_USER@$SSH_HOST" "deploy $SHA $CLIENT_DIGEST $SERVER_DIGEST"
 ```
 
-- [ ] **Step 6: Fail loudly**
+- [x] **Step 6: Fail loudly**
 
 A non-zero exit fails the job. Do not swallow it and do not retry — the script has already rolled back, and a retry would repeat a known-bad deploy.
 
-- [ ] **Step 7: Verify the happy path**
+- [x] **Step 7: Verify the happy path**
 
 Acceptance criterion 1.
 
-- [ ] **Step 8: Verify the rollback**
+- [x] **Step 8: Verify the rollback**
 
 Acceptance criterion 2. Dispatch with a SHA whose digest is deliberately corrupted, running this throughout:
 
@@ -780,11 +780,11 @@ while true; do curl -s -o /dev/null -w '%{http_code}\n' https://vinyl.is-a.dev/a
 
 Confirm **no failed request**.
 
-- [ ] **Step 9: Verify no secret reached the log**
+- [x] **Step 9: Verify no secret reached the log**
 
 The other half of criterion 6. Read the deploy job's log end to end.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 `ci: deploy to the host over a restricted ssh key`
 
@@ -792,15 +792,15 @@ The other half of criterion 6. Read the deploy job's log end to end.
 
 **Files:** `.github/dependabot.yml`
 
-- [ ] **Step 1: Three ecosystems**
+- [x] **Step 1: Three ecosystems**
 
 `npm` at `/` (workspaces are covered from the root), `github-actions` at `/`, and `docker` at `/` for the base images in both Dockerfiles and the compose files. Weekly, grouped so a single PR carries patch bumps rather than one PR per package.
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Confirm Dependabot runs and either opens a PR or reports no updates needed.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 `ci: keep dependencies, actions and base images current`
 
@@ -816,67 +816,67 @@ Confirm Dependabot runs and either opens a PR or reports no updates needed.
 
 Written in `RUNNING.md`'s register: plain instructions, one command per block, no cleverness. Each bullet below is a section to write.
 
-- [ ] **First-time provisioning, end to end**
+- [x] **First-time provisioning, end to end**
 
 OCI signup (card for identity verification, not charged). Instance at `VM.Standard.A1.Flex`, **2 OCPU / 12 GB** — state that the old 4/24 figure is dead and that over-limit instances have been terminated since 18 Aug 2026. Ubuntu 24.04, `eu-frankfurt-1`, and what to do when it says out of capacity. **Opening 80/443 in the VCN security list**, with the diagnostic stated plainly: `curl` working on the box and hanging from outside means the security list, not the app.
 
-- [ ] **The DNS records for the `is-a.dev` pull request**
+- [x] **The DNS records for the `is-a.dev` pull request**
 
 The exact `domains/vinyl.json` content, and **that the operator opens the PR by hand** because the maintainers reject AI-generated pull requests. State the ordering trap: DNS must resolve **before** Caddy first starts, because that is when it requests the certificate.
 
-- [ ] **The OAuth callback registration**
+- [x] **The OAuth callback registration**
 
 At both providers, with the exact URLs.
 
-- [ ] **The GitHub secrets and variables to create**
+- [x] **The GitHub secrets and variables to create**
 
 In the `production` Environment: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_KNOWN_HOSTS`, and the variable `PUBLIC_BASE_URL`. How to capture the known-hosts value with `ssh-keyscan`, and why `StrictHostKeyChecking=no` is not the shortcut.
 
-- [ ] **Making the repository public**
+- [x] **Making the repository public**
 
 And enabling secret scanning with push protection.
 
-- [ ] **The generated values**
+- [x] **The generated values**
 
 Session secret, database password, SSH deploy key — the command that generates each and **where each half goes**. Include the `authorized_keys` line verbatim with its forced command and restrictions, and say what it buys: a leaked key can deploy, and cannot get a shell.
 
-- [ ] **Deploying**
+- [x] **Deploying**
 
 Automatic on push; `workflow_dispatch` for a manual run.
 
-- [ ] **Rolling back, and the sharp edge**
+- [x] **Rolling back, and the sharp edge**
 
 Dispatch with an older SHA. In the same section rather than an appendix, spec §10.2: an image rollback does not roll back a migration. State the two-deploy rule for any migration that drops or renames — one deploy stops using the column, a later one removes it — and give the manual recovery for when it was not followed: restore the newest `pre-migrate/*.sql.gz`, then deploy the previous SHA.
 
-- [ ] **Rotating the session secret**
+- [x] **Rotating the session secret**
 
 Edit `.env`, `up -d` (**not** `restart`). Everyone is signed out, which is the intended effect.
 
-- [ ] **Rotating the deploy key**
+- [x] **Rotating the deploy key**
 
 Add the new key, update the secret, **prove it with a dispatch, then** remove the old line. In that order: removing first is how a pipeline locks itself out of its own server.
 
-- [ ] **Changing the domain later**
+- [x] **Changing the domain later**
 
 A numbered procedure: new DNS record → `SITE_ADDRESS` and `PUBLIC_BASE_URL` in the box's `.env` → the `PUBLIC_BASE_URL` variable in the GitHub Environment → both OAuth callbacks re-registered → `up -d`. Leaving the old record in place until the new certificate is issued means no downtime.
 
-- [ ] **Troubleshooting, in `RUNNING.md`'s style**
+- [x] **Troubleshooting, in `RUNNING.md`'s style**
 
 Symptom as the heading. Cover: the security-list hang; no certificate (DNS ordering, or Let's Encrypt's five-duplicates-per-week after repeated `down -v`); sign-in failing silently (`TRUST_PROXY_HOPS`); and `docker compose exec server printenv` for the whitelist landmine.
 
-- [ ] **What has no backup**
+- [x] **What has no backup**
 
 Plainly, not buried. The collection exists in one place; an Oracle reclaim is the most likely way this deployment ends; and the `pre-migrate` dumps are rollback machinery rather than backups — same disk, nothing between deploys, no uploads. Point at spec §11.3 for the hour of work that would change it.
 
-- [ ] **The follow-up task**
+- [x] **The follow-up task**
 
 Removing `continue-on-error` from the scanner jobs once triaged.
 
-- [ ] **Verify**
+- [x] **Verify**
 
 Read it start to finish as if provisioning from nothing. Every value present, every command copy-pasteable, no step assuming knowledge from elsewhere.
 
-- [ ] **Commit**
+- [x] **Commit**
 
 `docs: write the deployment runbook`
 
@@ -884,27 +884,27 @@ Read it start to finish as if provisioning from nothing. Every value present, ev
 
 **Files:** `.env.example`, `README.md`, `docker-compose.prod.yml`
 
-- [ ] **Step 1: `.env.example`**
+- [x] **Step 1: `.env.example`**
 
 Add `TRUST_PROXY_HOPS` with both values explained, and a production block covering `SITE_ADDRESS`, `CLIENT_IMAGE`, `SERVER_IMAGE` and what changes in production: `NODE_ENV`, `PUBLIC_BASE_URL`, a fresh `SESSION_SECRET`, `SIGNUP_MODE` staying `invite`, and `BOOTSTRAP_OWNER_EMAIL` set before first sign-in. Keep the existing register — every variable carries a comment saying why.
 
-- [ ] **Step 2: `README.md`**
+- [x] **Step 2: `README.md`**
 
 A short **Deployment** section linking to `DEPLOYMENT.md` rather than duplicating it.
 
-- [ ] **Step 3: Fix the stale CI paragraph**
+- [x] **Step 3: Fix the stale CI paragraph**
 
 The README says CI "installs dependencies, then runs `npm run lint` and `npm run build`". It also tests, audits, scans for secrets and runs CodeQL, and now feeds a build-and-deploy chain. Rewrite it.
 
-- [ ] **Step 4: Label `docker-compose.prod.yml`**
+- [x] **Step 4: Label `docker-compose.prod.yml`**
 
 Note that it is the laptop's production mode and **not** what is deployed — `docker-compose.deploy.yml` is — so nobody edits the wrong file.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Every link resolves and every referenced variable exists.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 `docs: point the readme at the deployment runbook`
 
