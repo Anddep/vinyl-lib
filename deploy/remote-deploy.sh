@@ -148,7 +148,53 @@ log "Bringing the database up"
 compose up -d --wait db
 
 # ---------------------------------------------------------------------------
-# 6. Dump before migrating.
+# 6. Pre-flight the new image BEFORE anything is cut over.
+# ---------------------------------------------------------------------------
+# Without this the sequence is: replace the running server, discover it is
+# broken, roll back. That is a rollback, but it is not "the site stays up" — the
+# outage lasts for however long the health poll is willing to wait, which is
+# around a minute. Measured: 63 of 78 requests returned 502 during a failed
+# deploy.
+#
+# So start the new image alongside the running one, on the same network and with
+# the same environment, and ask it the same question the healthcheck asks. If it
+# cannot answer, nothing has been touched: no dump, no migration, no cutover,
+# and the previous version is still serving. The common failure — an image that
+# does not start or does not serve — now costs zero downtime.
+#
+# The post-cutover poll below still runs. This catches a bad image; that catches
+# a bad deployment.
+log "Pre-flighting the new server image"
+PREFLIGHT="vinyl-preflight-$$"
+# Same probe as the compose healthcheck, run inside the candidate container so
+# nothing has to be published to reach it.
+PROBE='require("http").get("http://127.0.0.1:"+(process.env.PORT||4000)+"/api/health",r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))'
+
+compose run -d --no-deps --name "${PREFLIGHT}" server >/dev/null 2>&1 \
+  || die "the new server image would not even start. Nothing has been changed."
+
+preflight_ok=1
+for ((i = 1; i <= 15; i++)); do
+  if docker exec "${PREFLIGHT}" node -e "${PROBE}" >/dev/null 2>&1; then
+    preflight_ok=0
+    info "new image answers health after ${i} attempt(s)"
+    break
+  fi
+  sleep 2
+done
+
+if [[ ${preflight_ok} -ne 0 ]]; then
+  info "--- last lines from the candidate container ---"
+  docker logs --tail 20 "${PREFLIGHT}" 2>&1 | sed 's/^/    /' || true
+  docker rm -f "${PREFLIGHT}" >/dev/null 2>&1 || true
+  die "the new server image never became healthy.
+    Nothing has been changed — no migration, no cutover. The previous version is
+    still serving and the site did not go down."
+fi
+docker rm -f "${PREFLIGHT}" >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------------------
+# 7. Dump before migrating.
 # ---------------------------------------------------------------------------
 # THIS IS NOT A BACKUP. It lives on the same disk as the database it dumps, it
 # captures nothing between deploys, and it does not include the uploads volume.
@@ -168,7 +214,7 @@ info "$(du -h "${DUMP}" | cut -f1) -> ${DUMP}"
 ls -1t "${PRE_MIGRATE_DIR}"/*.sql.gz 2>/dev/null | tail -n +$((KEEP_DUMPS + 1)) | xargs -r rm -f
 
 # ---------------------------------------------------------------------------
-# 7. Migrate, before the new server starts.
+# 8. Migrate, before the new server starts.
 # ---------------------------------------------------------------------------
 # `migrate deploy`, never `migrate dev`: dev is interactive, can generate a
 # migration from a schema diff, and can reset the database.
@@ -177,7 +223,7 @@ compose run --rm --no-deps server npx prisma migrate deploy \
   || die "migration failed — the previous server is still running against the old schema"
 
 # ---------------------------------------------------------------------------
-# 8. Up.
+# 9. Up.
 # ---------------------------------------------------------------------------
 # `up -d`, never `restart`. restart reuses the container's existing environment,
 # so a changed .env or a changed image appears to deploy and changes nothing.
@@ -185,7 +231,7 @@ log "Starting the new containers"
 compose up -d --remove-orphans
 
 # ---------------------------------------------------------------------------
-# 9. Health gate, and the rollback if it does not answer.
+# 10. Health gate, and the rollback if it does not answer.
 # ---------------------------------------------------------------------------
 # Through the public URL rather than localhost: that path exercises DNS, Caddy,
 # TLS, nginx, Express and Postgres, which is the thing being claimed to work.
