@@ -756,6 +756,29 @@ Things deliberately left for later, recorded so they are not forgotten.
 
 - **Make the scanners blocking.** `audit` and `secrets` in `ci.yml` are
   `continue-on-error: true` so that a brand-new scanner does not fail `main` on
-  day one and teach everyone to bypass it. Once you have read the first findings
-  and triaged them, remove that line from both jobs.
+  day one and teach everyone to bypass it. Remove that line from both jobs once
+  the outstanding audit finding below is resolved.
+
+  `secrets` is already clean and could be made blocking today.
+
+- **Resolve the Vite advisory, then make `audit` blocking.** The first run found
+  two vulnerabilities, one high:
+
+  |                     |                                                                                                                                                                                                                              |
+  | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Package             | `vite`, `<= 6.4.2` (a client devDependency; the repo is on `^5.4.10`)                                                                                                                                                        |
+  | Advisories          | [GHSA-4w7w-66w2-5vf9](https://github.com/advisories/GHSA-4w7w-66w2-5vf9), [GHSA-fx2h-pf6j-xcff](https://github.com/advisories/GHSA-fx2h-pf6j-xcff), [GHSA-v6wh-96g9-6wx3](https://github.com/advisories/GHSA-v6wh-96g9-6wx3) |
+  | Reaches production? | **No**                                                                                                                                                                                                                       |
+
+  All three concern the **Vite dev server**, and two are Windows-specific. Vite
+  is a build-time tool: the client is compiled to static files and served by
+  nginx, and the deployed images contain no `vite` and no `esbuild` — the client
+  image has no `node_modules` at all. Verified by inspecting both built images.
+
+  So this is a risk to a developer running `npm run dev`, not to the public
+  host. It is still worth fixing, and the fix is a major-version bump of Vite
+  with its own test burden — which is why it is not bundled into the deployment
+  change. Do it on its own branch, confirm the client still builds and its tests
+  still pass, then remove `continue-on-error` from the `audit` job.
+
 - **Consider backups.** See [What has no backup](#what-has-no-backup).
