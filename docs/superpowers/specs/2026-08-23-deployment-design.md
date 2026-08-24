@@ -722,10 +722,13 @@ migrate, its test and its build. Added around it:
 - **`secrets`** — `gitleaks detect` over full history (`fetch-depth: 0`; the default shallow
   checkout would scan one commit and report clean, which is worse than not running it).
 
-Both new jobs start `continue-on-error: true`. This is an explicit, temporary choice: a
-brand-new scanner that blocks `main` on day one teaches everyone to bypass it. They report
-for a week, the backlog is triaged, then the flag is removed. `DEPLOYMENT.md` records that
-this is a thing to do rather than a thing that was decided forever.
+Both new jobs started `continue-on-error: true`. That was an explicit, temporary choice: a
+brand-new scanner that blocks `main` on day one teaches everyone to bypass it.
+
+**The flag is now gone from both.** The grace period turned out to be short. `gitleaks`
+never had a finding to grant grace for, and the single audit finding — `vite <= 6.4.2` and
+the `esbuild` it carried, all of it confined to the dev server and none of it reaching the
+deployed images — was resolved by moving the client to Vite 8. Both scanners block.
 
 ### 8.2 `codeql.yml`
 
@@ -1078,9 +1081,13 @@ There is no restore drill. It went with the backups (§11).
    makes the swap cheap either way.
 2. **Will `eu-frankfurt-1` have A1 capacity?** Unknowable until tried, and frequently no. The
    answer is retry, another region, or Hetzner. Nothing in the repository changes.
-3. **How long do the scanners stay non-blocking?** `continue-on-error: true` is deliberate and
-   temporary (§8.1). Someone has to decide when to remove it; the suggestion is after one
-   week and one triage pass.
+3. ~~**How long do the scanners stay non-blocking?**~~ **Resolved 2026-08-24: they are
+   blocking.** One triage pass, not one week. `gitleaks` had no findings; the audit's single
+   high-severity finding was Vite dev-server advisories that never reached the deployed
+   images, cleared by upgrading the client to Vite 8. Verified afterwards that the Vite
+   change did not alter what the build emits, since the CSP in §5.4.3 depends on it — the
+   bundle still carries no inline script or style, and its new `modulepreload` link is
+   covered by `script-src 'self'`.
 4. ~~**Does `read_only: true` fight the Postgres image?**~~ **Resolved 2026-08-23: it does
    not.** Brought up with the tmpfs set in §3.2 (`/var/run/postgresql`, `/tmp`) and `db`
    reports healthy. The `server` container was also confirmed to run read-only with all

@@ -870,7 +870,7 @@ Plainly, not buried. The collection exists in one place; an Oracle reclaim is th
 
 - [x] **The follow-up task**
 
-Removing `continue-on-error` from the scanner jobs once triaged.
+Removing `continue-on-error` from the scanner jobs once triaged. **Done 2026-08-24** — both scanners block, and the only follow-up left in `DEPLOYMENT.md` is whether to add backups.
 
 - [x] **Verify**
 
