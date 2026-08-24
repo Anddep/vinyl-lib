@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -32,15 +32,25 @@ function renderPage() {
   );
 }
 
+// The form is in the document from the first render, empty, and an effect fills
+// it once AuthProvider has fetched the user. Waiting for an element is not
+// enough, because the elements are already there: a read can catch a field
+// while it is still blank, and an edit can be undone when the effect lands
+// afterwards and puts the fetched values back. Wait for the data instead.
+async function renderLoadedPage(): Promise<void> {
+  renderPage();
+  await waitFor(() => expect(screen.getByLabelText(/address/i)).toHaveValue(USER.slug));
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 describe('AccountPage', () => {
   it('shows the current address and the URL it produces', async () => {
     mockApi({ status: 200, body: USER });
 
-    renderPage();
+    await renderLoadedPage();
 
-    expect(await screen.findByLabelText(/address/i)).toHaveValue('andriy');
+    expect(screen.getByLabelText(/address/i)).toHaveValue('andriy');
     expect(screen.getByText(/\/u\/andriy/)).toBeInTheDocument();
   });
 
@@ -55,8 +65,8 @@ describe('AccountPage', () => {
   it('saves a new address', async () => {
     const fetchStub = mockApi({ status: 200, body: { ...USER, slug: 'andriy-d' } });
 
-    renderPage();
-    const field = await screen.findByLabelText(/address/i);
+    await renderLoadedPage();
+    const field = screen.getByLabelText(/address/i);
     await userEvent.clear(field);
     await userEvent.type(field, 'andriy-d');
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
@@ -72,8 +82,7 @@ describe('AccountPage', () => {
       body: { error: 'Validation failed', fields: { slug: 'That address is taken' } },
     });
 
-    renderPage();
-    await screen.findByLabelText(/address/i);
+    await renderLoadedPage();
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/taken/i);
@@ -82,8 +91,8 @@ describe('AccountPage', () => {
   it('toggles the collection between public and private', async () => {
     const fetchStub = mockApi({ status: 200, body: { ...USER, isPublic: false } });
 
-    renderPage();
-    await userEvent.click(await screen.findByLabelText(/visible to anyone/i));
+    await renderLoadedPage();
+    await userEvent.click(screen.getByLabelText(/visible to anyone/i));
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     const patch = fetchStub.mock.calls.find(([, init]) => init?.method === 'PATCH');
