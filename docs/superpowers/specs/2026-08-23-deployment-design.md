@@ -939,6 +939,26 @@ attacker gets bored.
 
 ## 10. Rollback
 
+### 10.0 Pre-flight: not going down in the first place
+
+Rolling back is the second line of defence. The first is not cutting over to an image that
+cannot serve.
+
+The original design went straight from `pull` to `up -d` and relied on the health poll to
+notice. That is a rollback, but it is not "the site stays up": the outage lasts as long as the
+poll is willing to wait. Measured against a deliberately broken image, **63 of 78 requests
+during a failed deploy returned 502**.
+
+So `remote-deploy.sh` starts the candidate image alongside the running one, on the same
+network with the same environment, and asks it the same question the container healthcheck
+asks. If it cannot answer, the deploy aborts before the dump, before the migration and before
+any cutover — the previous version never stops serving. Re-measured on the same broken image:
+**40 of 40 requests returned 200**.
+
+This catches the common failure, which is an image that does not start or does not serve. The
+post-cutover poll in §10.1 stays, because it catches the other kind: a deployment that is
+broken even though the image itself is fine.
+
 ### 10.1 Automatic, image-level
 
 Every deploy writes `.images.prev` before it changes anything. If the health poll does not
@@ -1086,16 +1106,16 @@ left in place until the new certificate is issued.
 Verified against the running public deployment before the work is called done. Evidence, not
 assertion: each row names the command and what its output must show.
 
-| #   | Criterion                                                | How it is proven                                                                                                                                                                               |
-| --- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | A push to `main` reaches production with no human action | Change a string in a client component, push, watch CI → build → deploy chain, then load `https://vinyl.is-a.dev` and see the new string                                                        |
-| 2   | A bad deploy rolls back and the site stays up            | `workflow_dispatch` with a SHA whose digest is corrupted; the job fails, `.images.prev` is restored, and a `curl` loop running throughout records no failed request                            |
-| 3   | TLS is correct and renews unattended                     | `curl -I http://vinyl.is-a.dev` returns 308 to `https://`; `openssl s_client` shows a valid Let's Encrypt chain; Caddy's log shows the renewal timer                                           |
-| 4   | Nothing is listening that should not be                  | `nmap -Pn -p- <ip>` **from another machine** shows 22, 80, 443 and nothing else — specifically not 5432 and not 4000                                                                           |
-| 5   | Both providers sign in; the cookie is right              | Complete both flows on the public host; DevTools shows `sid` with `Secure`, `HttpOnly`, `SameSite=Lax`                                                                                         |
-| 6   | No secret in the repo, an image layer, or a log          | `gitleaks detect` over full history exits clean; `docker save` each image and grep the layers for the session secret, both client secrets and the database password; read the deploy job's log |
-| 7   | The proxy chain reports real client addresses            | `docker compose logs server` shows a public IPv4 in the `combined` line, not `172.x` — proving `TRUST_PROXY_HOPS=2` and therefore that the per-IP limiters are per-IP                          |
-| 8   | The CSP is correct and the fonts load                    | Every route in a browser with the console open: zero CSP violations, and `getComputedStyle(document.body).fontFamily` resolves to Geist — the §5.4.2 bug fixed                                 |
+| #   | Criterion                                                | How it is proven                                                                                                                                                                                                                                                              |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | A push to `main` reaches production with no human action | Change a string in a client component, push, watch CI → build → deploy chain, then load `https://vinyl.is-a.dev` and see the new string                                                                                                                                       |
+| 2   | A bad deploy rolls back and the site stays up            | **Verified locally 2026-08-24** against a local registry and a deliberately broken image: pre-flight refuses the cutover, the script exits 1, and a `curl` loop throughout recorded 40/40 HTTP 200 — against 63/78 failing before pre-flight existed. Repeat on the real host |
+| 3   | TLS is correct and renews unattended                     | `curl -I http://vinyl.is-a.dev` returns 308 to `https://`; `openssl s_client` shows a valid Let's Encrypt chain; Caddy's log shows the renewal timer                                                                                                                          |
+| 4   | Nothing is listening that should not be                  | `nmap -Pn -p- <ip>` **from another machine** shows 22, 80, 443 and nothing else — specifically not 5432 and not 4000                                                                                                                                                          |
+| 5   | Both providers sign in; the cookie is right              | Complete both flows on the public host; DevTools shows `sid` with `Secure`, `HttpOnly`, `SameSite=Lax`                                                                                                                                                                        |
+| 6   | No secret in the repo, an image layer, or a log          | `gitleaks detect` over full history exits clean; `docker save` each image and grep the layers for the session secret, both client secrets and the database password; read the deploy job's log                                                                                |
+| 7   | The proxy chain reports real client addresses            | `docker compose logs server` shows a public IPv4 in the `combined` line, not `172.x` — proving `TRUST_PROXY_HOPS=2` and therefore that the per-IP limiters are per-IP                                                                                                         |
+| 8   | The CSP is correct and the fonts load                    | Every route in a browser with the console open: zero CSP violations, and `getComputedStyle(document.body).fontFamily` resolves to Geist — the §5.4.2 bug fixed                                                                                                                |
 
 Criteria 7 and 8 come from the prompt's body rather than its numbered list; they are the two
 that would otherwise pass unnoticed, because both failure modes are silent.

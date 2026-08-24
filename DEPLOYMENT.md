@@ -420,6 +420,14 @@ To deploy a specific commit by hand — this is also how you roll back:
 
 ## Rolling back
 
+Most bad deploys never reach this, because the deploy refuses to cut over to an
+image that cannot serve. It starts the new server alongside the running one, asks
+it for `/api/health`, and aborts if it does not answer — before the database
+dump, before migrations, and before anything is swapped. The site stays up and
+the Actions run goes red.
+
+When you do need it:
+
 ```
 Actions → Deploy → Run workflow → <the SHA of the last good commit>
 ```
