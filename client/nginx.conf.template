@@ -1,3 +1,22 @@
+# Preserve the scheme the BROWSER used, which is not the scheme nginx sees.
+#
+# Caddy terminates TLS and reaches this container over plain HTTP on the Docker
+# network, so `$scheme` here is always "http". Setting X-Forwarded-Proto to
+# `$scheme` therefore OVERWRITES the "https" Caddy sent, and the consequences
+# are entirely silent: Express decides the request is insecure, express-session
+# refuses to set a `secure` cookie, and every sign-in completes the OAuth round
+# trip while the browser never receives a session. Nothing errors and nothing
+# is logged.
+#
+# So: forward what the upstream proxy said, and fall back to our own scheme only
+# when there is no upstream proxy — which is `npm run prod` on a laptop, where
+# nginx is the edge. Caddy always overwrites this header with the real
+# connection scheme, so a client cannot spoof it in the deployed topology.
+map $http_x_forwarded_proto $forwarded_proto {
+    ''      $scheme;
+    default $http_x_forwarded_proto;
+}
+
 server {
     listen 80;
     server_name _;
@@ -36,6 +55,6 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
     }
 }

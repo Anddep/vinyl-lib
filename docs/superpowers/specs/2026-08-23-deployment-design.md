@@ -482,6 +482,36 @@ a count and not `true`: `trust proxy: true` makes Express believe the leftmost
 which hands any visitor the ability to forge their own address and defeat the limiters
 they are being limited by.
 
+#### 5.5.1 The second half of the same trap: nginx overwrites the scheme
+
+Counting the hops correctly is necessary and not sufficient, and the missing half was found
+by testing rather than by reading.
+
+`client/nginx.conf.template` set `X-Forwarded-Proto $scheme`. `$scheme` is _nginx's own_
+scheme, and Caddy reaches the client container over plain HTTP on the Docker network — so
+nginx overwrote the `https` Caddy had set with `http`. Express then decided every request
+was insecure, and `express-session` with `cookie.secure: true` **silently declines to set the
+cookie**: the OAuth round trip completes, the session row is written, and the browser is
+never given the cookie to send back. Nothing errors and nothing is logged. It is the same
+failure mode as an undercounted hop, arriving by a different route.
+
+The fix forwards what the upstream proxy said and falls back to nginx's own scheme only when
+there is no upstream proxy — which is `npm run prod` on a laptop, where nginx is the edge:
+
+```nginx
+map $http_x_forwarded_proto $forwarded_proto {
+    ''      $scheme;
+    default $http_x_forwarded_proto;
+}
+```
+
+A client cannot spoof this in the deployed topology, because Caddy overwrites
+`X-Forwarded-Proto` with the real connection scheme before nginx ever sees it.
+
+Note that `X-Forwarded-For` never had this problem: nginx uses
+`$proxy_add_x_forwarded_for`, which appends to the existing header rather than replacing it.
+That is why the address chain was right while the scheme was wrong.
+
 Per the landmine this codebase already documents, `TRUST_PROXY_HOPS` must be added to the
 `environment:` list of `docker-compose.yml`, `docker-compose.override.yml` **and**
 `docker-compose.deploy.yml` — the base list is replaced by the override, not merged with it,
