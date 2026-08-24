@@ -60,10 +60,6 @@ jobs:
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
-    # Reports rather than blocks, for now. A brand-new scanner that fails main
-    # on day one teaches everyone to bypass it. Remove this once the first
-    # findings have been triaged — DEPLOYMENT.md tracks it as a follow-up.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,7 +79,6 @@ jobs:
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
