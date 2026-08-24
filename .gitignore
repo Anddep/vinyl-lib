@@ -43,3 +43,7 @@ server/uploads/
 
 # Editor / tooling workspace config
 .claude/
+
+# Working prompt files. Kept locally, deliberately not published — a stray
+# `git add docs/` has swept them in once already.
+docs/*-prompt.md
