@@ -21,11 +21,33 @@ env:
 
 jobs:
   build:
-    # A workflow_run fires whatever the conclusion, including failure. Without
-    # this a red CI run would still produce an image.
+    # This condition is a security boundary, not a tidiness check.
+    #
+    # workflow_run jobs run in the BASE repository's context, with its secrets
+    # and the permissions block below — including packages: write. A fork's
+    # pull_request CI run, by contrast, runs in the fork's context and can
+    # modify ci.yml itself. So without the two extra clauses here, anyone could
+    # fork this repository, name their branch `main` to satisfy the branches
+    # filter above, open a pull request, and have this job check out
+    # workflow_run.head_sha — their code — and push it to GHCR as :latest. Build
+    # succeeding then chains to deploy.yml, which holds the SSH key to the
+    # server.
+    #
+    #   event == 'push'          a fork cannot cause a push event on this repo;
+    #                            a fork PR always reports 'pull_request'
+    #   head_repository == this  the triggering run must come from here, not a
+    #                            fork that happens to have a branch named main
+    #
+    # Also still checks the conclusion: a workflow_run fires whatever the
+    # outcome, so without it a red CI run would produce an image.
     if: >-
       github.event_name == 'push' ||
-      github.event.workflow_run.conclusion == 'success'
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
 
     # Native arm64. The VM is ARM, and a QEMU cross-build of Vite plus tsc plus
     # prisma generate takes upwards of fifteen minutes for the same artifact.
