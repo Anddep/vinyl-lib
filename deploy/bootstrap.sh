@@ -147,6 +147,58 @@ fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
+log "5b/12  Reclaim memory on a small host"
+# ---------------------------------------------------------------------------
+# Only on machines small enough for it to matter. On anything with 2 GB or more
+# these services cost nothing worth having, so leave them alone.
+#
+# On a 1 GB always-free instance they are a meaningful share of the machine:
+# measured on a stock GCP Ubuntu 24.04 image, these four total roughly 140 MB of
+# the 955 MB available, which is the difference between the stack fitting and
+# the stack swapping.
+#
+# google-guest-agent is deliberately NOT touched: it propagates SSH keys from
+# the cloud metadata service, and disabling it locks you out at the next key
+# change.
+TOTAL_MB="$(free -m | awk '/^Mem:/{print $2}')"
+if [[ "${TOTAL_MB}" -lt 2048 ]]; then
+  echo "    ${TOTAL_MB} MB of RAM — trimming services this deployment does not use"
+
+  # Patch management from the cloud provider, duplicating unattended-upgrades.
+  if systemctl list-unit-files google-osconfig-agent.service >/dev/null 2>&1; then
+    systemctl disable --now google-osconfig-agent.service >/dev/null 2>&1 || true
+    echo "      google-osconfig-agent disabled (~50 MB)"
+  fi
+
+  # Multipath SCSI. One disk, one path.
+  if systemctl list-unit-files multipathd.service >/dev/null 2>&1; then
+    systemctl disable --now multipathd.service multipathd.socket >/dev/null 2>&1 || true
+    echo "      multipathd disabled (~27 MB)"
+  fi
+
+  # Hook dispatcher for network events. Nothing here subscribes to them.
+  if systemctl list-unit-files networkd-dispatcher.service >/dev/null 2>&1; then
+    systemctl disable --now networkd-dispatcher.service >/dev/null 2>&1 || true
+    echo "      networkd-dispatcher disabled (~20 MB)"
+  fi
+
+  # snapd, plus whatever snaps the image shipped. Everything this deployment
+  # needs comes from apt or from a container, and the cloud CLI is not run here.
+  if command -v snap >/dev/null 2>&1; then
+    for snap_name in $(snap list 2>/dev/null | awk 'NR>1{print $1}' | grep -v '^snapd$'); do
+      snap remove --purge "${snap_name}" >/dev/null 2>&1 || true
+    done
+    snap remove --purge snapd >/dev/null 2>&1 || true
+    systemctl disable --now snapd.service snapd.socket snapd.seeded.service >/dev/null 2>&1 || true
+    apt-get purge -y -qq snapd >/dev/null 2>&1 || true
+    rm -rf /var/cache/snapd /root/snap
+    echo "      snapd removed (~42 MB, plus disk)"
+  fi
+else
+  skip "${TOTAL_MB} MB of RAM — no need to trim services"
+fi
+
+# ---------------------------------------------------------------------------
 log "6/12  Swap"
 # ---------------------------------------------------------------------------
 # Neither OCI's nor Hetzner's images configure any.

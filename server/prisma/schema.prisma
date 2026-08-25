@@ -1,11 +1,11 @@
 generator client {
   provider      = "prisma-client-js"
-  // The deployed image is Alpine on arm64 against OpenSSL 3. Without this the
-  // engine is built for whatever generated it, the container starts perfectly
-  // happily, and the first query is what fails — so the deploy's health poll
-  // discovers it with the site already down. `native` stays so generating on a
-  // laptop still works.
-  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  // The deployed image is Alpine (musl) on x86-64 against OpenSSL 3. Without
+  // this the engine is built for whatever generated it, the container starts
+  // perfectly happily, and the first query is what fails — so the deploy's
+  // health poll discovers it with the site already down. `native` stays so
+  // generating on an Apple Silicon laptop still works.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

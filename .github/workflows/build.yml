@@ -49,10 +49,11 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository
       )
 
-    # Native arm64. The VM is ARM, and a QEMU cross-build of Vite plus tsc plus
-    # prisma generate takes upwards of fifteen minutes for the same artifact.
-    # Four vCPUs here because the repository is public.
-    runs-on: ubuntu-24.04-arm
+    # Native amd64, matching the host. Cross-building under QEMU takes upwards of
+    # fifteen minutes for an identical artifact, so the runner architecture
+    # tracks the server's. If the host ever moves back to ARM, this line and the
+    # two `platforms:` values below are the whole change.
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
@@ -103,7 +104,7 @@ jobs:
           context: .
           file: client/Dockerfile
           target: prod
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.CLIENT_IMAGE }}:sha-${{ steps.resolve.outputs.sha }}
@@ -122,7 +123,7 @@ jobs:
           context: .
           file: server/Dockerfile
           target: prod
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.SERVER_IMAGE }}:sha-${{ steps.resolve.outputs.sha }}
