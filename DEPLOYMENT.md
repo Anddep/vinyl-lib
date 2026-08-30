@@ -12,7 +12,7 @@ days when something is wrong.
 
 |            |                                                         |
 | ---------- | ------------------------------------------------------- |
-| Site       | https://vinyl.is-a.dev                                  |
+| Site       | https://vinyl-lib.duckdns.org                           |
 | Host       | one Ubuntu 24.04 arm64 VM                               |
 | Deploys    | automatically, on every push to `main`                  |
 | Rolls back | automatically, if the new version is not healthy        |
@@ -109,7 +109,7 @@ Add two, both stateless **off**, source CIDR `0.0.0.0/0`, IP protocol TCP:
 Port 22 is already open by default.
 
 > **The symptom if you skip this:** `curl localhost` works when you are SSH'd
-> into the box, `curl https://vinyl.is-a.dev` from your laptop hangs forever,
+> into the box, `curl https://vinyl-lib.duckdns.org` from your laptop hangs forever,
 > and `sudo ufw status` on the box shows 80 and 443 as ALLOW. Everything looks
 > correct because the block is one layer above everything you can see.
 
@@ -119,59 +119,45 @@ Note the instance's **public IPv4 address**. You need it twice below.
 
 ## 3. Point the domain at it
 
-`vinyl.is-a.dev` is free, and you get it by opening a pull request against
-[is-a-dev/register](https://github.com/is-a-dev/register).
+The deployment uses **DuckDNS**: free, instant, no review, and — unlike the
+wildcard services — listed on the Public Suffix List, which matters because
+Let's Encrypt applies its rate limit per registered domain. Every `sslip.io`
+user shares one bucket; each `*.duckdns.org` subdomain gets its own.
 
-> **Open this pull request yourself, by hand.** Their maintainers reject
-> AI-generated pull requests. Everything you need is below; the writing has to
-> be yours.
-
-Fork the repository and add one file, `domains/vinyl.json`:
-
-```json
-{
-  "owner": {
-    "username": "Anddep",
-    "email": "your@address.here"
-  },
-  "record": {
-    "A": ["YOUR.INSTANCE.PUBLIC.IP"]
-  }
-}
-```
-
-If your instance has a public IPv6 address, add it too:
-
-```json
-{
-  "owner": {
-    "username": "Anddep",
-    "email": "your@address.here"
-  },
-  "record": {
-    "A": ["YOUR.INSTANCE.PUBLIC.IP"],
-    "AAAA": ["YOUR:INSTANCE:PUBLIC:IPV6"]
-  }
-}
-```
-
-Check the name is actually free before you write the PR — open
-`https://github.com/is-a-dev/register/blob/main/domains/vinyl.json` and confirm
-it 404s. Short dictionary words are also the most likely to be on their reserved
-list. `groovesanddust` is the fallback if `vinyl` is refused; if you use it,
-substitute it everywhere below.
-
-**Wait for the pull request to merge and for DNS to resolve before you deploy.**
+1. Sign in at <https://www.duckdns.org> (GitHub, Google, Reddit or Twitter — no
+   password, no confirmation email).
+2. Type a name in the **domains** box and click **add domain**.
+3. Put the instance's public IPv4 in the **current ip** field and click
+   **update ip**.
 
 ```bash
-dig +short vinyl.is-a.dev
+dig +short vinyl-lib.duckdns.org
 ```
 
-That must print your instance's IP. Caddy requests its certificate on the first
-request it receives, so deploying before DNS resolves burns an attempt against
-Let's Encrypt's rate limit for nothing.
+That must print your instance's IP before you deploy. Caddy requests its
+certificate on the first request it receives, so a name that does not resolve
+yet burns an attempt against the rate limit for nothing.
 
----
+You do not need the DuckDNS token or their updater script: the GCP external IP
+is reserved and static, so the record is set once and left alone.
+
+### If you would rather have a nicer name
+
+`vinyl-lib.duckdns.org` is free and prettier, but it is a pull request against
+[is-a-dev/register](https://github.com/is-a-dev/register) reviewed by a human,
+and their maintainers reject AI-generated pull requests — so it is one you write
+yourself, and it takes days rather than minutes. Add `domains/<name>.json`:
+
+```json
+{
+  "owner": { "username": "Anddep", "email": "your@address.here" },
+  "record": { "A": ["YOUR.INSTANCE.PUBLIC.IP"] }
+}
+```
+
+Moving there later is not a migration — see
+[Changing the domain](#changing-the-domain). Leave the DuckDNS record in place
+until the new certificate issues and there is no downtime.
 
 ## 4. Generate the secrets
 
@@ -231,14 +217,14 @@ Both providers need to know the public URL, exactly.
 Authorised redirect URIs → add:
 
 ```
-https://vinyl.is-a.dev/api/auth/google/callback
+https://vinyl-lib.duckdns.org/api/auth/google/callback
 ```
 
 **GitHub** — Settings → Developer settings → OAuth Apps → your app →
 Authorization callback URL:
 
 ```
-https://vinyl.is-a.dev/api/auth/github/callback
+https://vinyl-lib.duckdns.org/api/auth/github/callback
 ```
 
 Keep the existing `http://localhost:5173/...` entries. Google allows several
@@ -343,8 +329,8 @@ POSTGRES_PASSWORD=THE_GENERATED_DATABASE_PASSWORD
 POSTGRES_DB=vinyl_lib
 DATABASE_URL=postgresql://vinyl_lib:THE_GENERATED_DATABASE_PASSWORD@db:5432/vinyl_lib?schema=public
 
-SITE_ADDRESS=vinyl.is-a.dev
-PUBLIC_BASE_URL=https://vinyl.is-a.dev
+SITE_ADDRESS=vinyl-lib.duckdns.org
+PUBLIC_BASE_URL=https://vinyl-lib.duckdns.org
 
 SESSION_SECRET=THE_GENERATED_SESSION_SECRET
 
@@ -421,7 +407,7 @@ git push origin main
 CI runs, then Build produces arm64 images and pushes them to GHCR, then Deploy
 SSHes to the box, pulls the new images by digest, dumps the database, applies
 migrations, restarts the containers, and waits for
-`https://vinyl.is-a.dev/api/health` to answer. If it does not answer, it puts
+`https://vinyl-lib.duckdns.org/api/health` to answer. If it does not answer, it puts
 the previous version back and fails loudly.
 
 To deploy a specific commit by hand — this is also how you roll back:
@@ -607,7 +593,7 @@ place until the new certificate is issued and there is no downtime at all.
 
 ### The site hangs from outside, but works on the box
 
-`curl localhost` on the box succeeds, `curl https://vinyl.is-a.dev` from your
+`curl localhost` on the box succeeds, `curl https://vinyl-lib.duckdns.org` from your
 laptop hangs, and `sudo ufw status` shows 80 and 443 allowed.
 
 It is the OCI security list, one layer above anything on the box. See
@@ -622,7 +608,7 @@ cd /opt/vinyl-lib && sudo -u deploy docker compose -f docker-compose.deploy.yml 
 Two usual causes:
 
 - **DNS did not resolve when Caddy first asked.** Confirm `dig +short
-vinyl.is-a.dev` returns your IP, then restart Caddy.
+vinyl-lib.duckdns.org` returns your IP, then restart Caddy.
 - **You have hit Let's Encrypt's rate limit.** Five duplicate certificates per
   week for the same name. Running `docker compose down -v` repeatedly destroys
   the `caddy-data` volume and burns one attempt each time. The only cure is
