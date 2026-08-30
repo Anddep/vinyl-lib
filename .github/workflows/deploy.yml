@@ -1,0 +1,152 @@
+name: Deploy
+
+on:
+  # The normal path: Build succeeded on main, so there are images to deploy.
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+    branches: [main]
+  # The rollback interface. Any commit that ever produced images can be
+  # deployed, because the digests are resolved from the registry rather than
+  # remembered here.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA to deploy (40 hex characters)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CLIENT_IMAGE: ghcr.io/anddep/vinyl-lib-client
+  SERVER_IMAGE: ghcr.io/anddep/vinyl-lib-server
+
+jobs:
+  deploy:
+    # Same reasoning as build.yml, with one difference that matters.
+    #
+    # Here github.event.workflow_run is the BUILD run, and Build is itself
+    # triggered by workflow_run — so its .event is 'workflow_run', never 'push'.
+    # Requiring event == 'push' here, as build.yml correctly does, would mean no
+    # deploy ever fired again. The identity check is the one that transfers.
+    #
+    # Build is the real gate: only trusted code reaches it. This is the second
+    # lock on the door that holds SSH_KEY.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
+
+    runs-on: ubuntu-latest
+
+    # Holds the secrets, and records every deployment against its commit in the
+    # repository's environment history.
+    environment: production
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Resolve the commit
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHA="${{ inputs.sha }}"
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          fi
+          # Validated here as well as on the box, so a typo in a manual rollback
+          # fails in the browser rather than over SSH.
+          if ! printf '%s' "$SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::'$SHA' is not a 40-character commit SHA"
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout that commit
+        uses: actions/checkout@v4
+        with:
+          # The topology travels with the deploy, so it must be the topology
+          # from the commit being deployed.
+          ref: ${{ steps.resolve.outputs.sha }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image digests for that commit
+        id: digests
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.resolve.outputs.sha }}"
+          # Ask the registry what sha-<commit> currently points at, and deploy
+          # THAT by digest. Resolving here rather than trusting the tag on the
+          # box means the box never has to look anything up, and a moved tag
+          # cannot change what a rollback restores.
+          for pair in "client:${{ env.CLIENT_IMAGE }}" "server:${{ env.SERVER_IMAGE }}"; do
+            name="${pair%%:*}"; repo="${pair#*:}"
+            digest="$(docker buildx imagetools inspect "${repo}:sha-${SHA}" \
+              --format '{{ .Manifest.Digest }}')"
+            if ! printf '%s' "$digest" | grep -qE '^sha256:[0-9a-f]{64}$'; then
+              echo "::error::could not resolve a digest for ${repo}:sha-${SHA}"
+              exit 1
+            fi
+            echo "${name}=${digest}" >> "$GITHUB_OUTPUT"
+            echo "${name} ${digest}"
+          done
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # A pinned host key, never StrictHostKeyChecking=no. Accepting an
+          # unknown key on every run turns a pinned host into trust-on-first-use
+          # and discards exactly the protection being paid for.
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          # The compose file and the Caddyfile travel on stdin, flattened into
+          # the archive root because that is the layout the box expects and the
+          # only two member names its allowlist accepts.
+          tar -cf - \
+              -C . docker-compose.deploy.yml \
+              -C deploy Caddyfile \
+          | ssh -o UserKnownHostsFile=~/.ssh/known_hosts \
+                -o StrictHostKeyChecking=yes \
+                -o BatchMode=yes \
+                -i ~/.ssh/deploy_key \
+                "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+                "deploy ${{ steps.resolve.outputs.sha }} ${{ steps.digests.outputs.client }} ${{ steps.digests.outputs.server }}"
+          # No retry on failure. remote-deploy.sh has already rolled back, and
+          # retrying would only repeat a deploy that is known to be bad.
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy"
+            echo
+            echo "- commit \`${{ steps.resolve.outputs.sha }}\`"
+            echo "- client \`${{ steps.digests.outputs.client }}\`"
+            echo "- server \`${{ steps.digests.outputs.server }}\`"
+            echo "- result **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"

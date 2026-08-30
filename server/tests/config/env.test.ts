@@ -5,6 +5,7 @@ import {
   parseCount,
   parsePort,
   signupMode,
+  trustProxyHops,
 } from '../../src/config/env';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -93,5 +94,31 @@ describe('limits', () => {
   it('reads overrides', () => {
     vi.stubEnv('MAX_RECORDS_PER_USER', '10');
     expect(limits().maxRecords).toBe(10);
+  });
+});
+
+describe('trustProxyHops', () => {
+  it('defaults to one, which is laptop prod mode: nginx and nothing else', () => {
+    vi.stubEnv('TRUST_PROXY_HOPS', '');
+    expect(trustProxyHops()).toBe(1);
+  });
+
+  it('reads the deployed value, where Caddy sits in front of nginx', () => {
+    vi.stubEnv('TRUST_PROXY_HOPS', '2');
+    expect(trustProxyHops()).toBe(2);
+  });
+
+  it('falls back on zero, which is a typo rather than a configuration', () => {
+    // Zero proxies would make req.ip the socket address of the container that
+    // proxied the request, which is the bug this variable exists to fix.
+    vi.stubEnv('TRUST_PROXY_HOPS', '0');
+    expect(trustProxyHops()).toBe(1);
+  });
+
+  it('throws on a non-numeric value rather than quietly trusting one hop', () => {
+    // Silently falling back would leave every per-IP limiter sharing a single
+    // bucket for the whole internet, with nothing in the logs to say so.
+    vi.stubEnv('TRUST_PROXY_HOPS', 'all');
+    expect(() => trustProxyHops()).toThrow();
   });
 });

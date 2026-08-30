@@ -1,0 +1,149 @@
+name: Build
+
+# Runs only after CI has passed on main. workflow_run is what chains them: the
+# alternative, rebuilding the same checks here, means the same tests run twice
+# and can disagree.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  CLIENT_IMAGE: ghcr.io/anddep/vinyl-lib-client
+  SERVER_IMAGE: ghcr.io/anddep/vinyl-lib-server
+
+jobs:
+  build:
+    # This condition is a security boundary, not a tidiness check.
+    #
+    # workflow_run jobs run in the BASE repository's context, with its secrets
+    # and the permissions block below — including packages: write. A fork's
+    # pull_request CI run, by contrast, runs in the fork's context and can
+    # modify ci.yml itself. So without the two extra clauses here, anyone could
+    # fork this repository, name their branch `main` to satisfy the branches
+    # filter above, open a pull request, and have this job check out
+    # workflow_run.head_sha — their code — and push it to GHCR as :latest. Build
+    # succeeding then chains to deploy.yml, which holds the SSH key to the
+    # server.
+    #
+    #   event == 'push'          a fork cannot cause a push event on this repo;
+    #                            a fork PR always reports 'pull_request'
+    #   head_repository == this  the triggering run must come from here, not a
+    #                            fork that happens to have a branch named main
+    #
+    # Also still checks the conclusion: a workflow_run fires whatever the
+    # outcome, so without it a red CI run would produce an image.
+    if: >-
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
+
+    # Native amd64, matching the host. Cross-building under QEMU takes upwards of
+    # fifteen minutes for an identical artifact, so the runner architecture
+    # tracks the server's. If the host ever moves back to ARM, this line and the
+    # two `platforms:` values below are the whole change.
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      # For the build provenance attestation.
+      id-token: write
+      attestations: write
+
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      client_digest: ${{ steps.client.outputs.digest }}
+      server_digest: ${{ steps.server.outputs.digest }}
+
+    steps:
+      - name: Resolve the commit to build
+        id: resolve
+        run: |
+          # A workflow_run job checks out the DEFAULT BRANCH by default, not the
+          # commit that triggered it. Left alone, that quietly builds the wrong
+          # commit whenever two pushes land close together.
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout that commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # Minted per run and scoped by the permissions block above. No stored
+          # registry credential exists anywhere.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the client
+        id: client
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: client/Dockerfile
+          target: prod
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.CLIENT_IMAGE }}:sha-${{ steps.resolve.outputs.sha }}
+            ${{ env.CLIENT_IMAGE }}:latest
+          # The deps stage is a full npm ci of both workspaces and is identical
+          # between runs until package-lock.json changes, which is most runs.
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,scope=client,mode=max
+          sbom: true
+          provenance: mode=max
+
+      - name: Build and push the server
+        id: server
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: server/Dockerfile
+          target: prod
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.SERVER_IMAGE }}:sha-${{ steps.resolve.outputs.sha }}
+            ${{ env.SERVER_IMAGE }}:latest
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+          sbom: true
+          provenance: mode=max
+
+      - name: Summary
+        run: |
+          # Digests, not tags. A tag is a pointer and pointers move; the digest
+          # is the content, and it is what makes a rollback mean something.
+          {
+            echo "### Images"
+            echo
+            echo "| Image | Digest |"
+            echo "| ----- | ------ |"
+            echo "| client | \`${{ steps.client.outputs.digest }}\` |"
+            echo "| server | \`${{ steps.server.outputs.digest }}\` |"
+            echo
+            echo "Commit \`${{ steps.resolve.outputs.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

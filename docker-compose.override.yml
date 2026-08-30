@@ -31,6 +31,7 @@ services:
       # Compose replaces the base list rather than merging it, so every variable
       # the server reads has to be repeated here as well.
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      - TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}

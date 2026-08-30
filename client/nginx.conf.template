@@ -1,3 +1,22 @@
+# Preserve the scheme the BROWSER used, which is not the scheme nginx sees.
+#
+# Caddy terminates TLS and reaches this container over plain HTTP on the Docker
+# network, so `$scheme` here is always "http". Setting X-Forwarded-Proto to
+# `$scheme` therefore OVERWRITES the "https" Caddy sent, and the consequences
+# are entirely silent: Express decides the request is insecure, express-session
+# refuses to set a `secure` cookie, and every sign-in completes the OAuth round
+# trip while the browser never receives a session. Nothing errors and nothing
+# is logged.
+#
+# So: forward what the upstream proxy said, and fall back to our own scheme only
+# when there is no upstream proxy — which is `npm run prod` on a laptop, where
+# nginx is the edge. Caddy always overwrites this header with the real
+# connection scheme, so a client cannot spoof it in the deployed topology.
+map $http_x_forwarded_proto $forwarded_proto {
+    ''      $scheme;
+    default $http_x_forwarded_proto;
+}
+
 server {
     listen 80;
     server_name _;
@@ -7,19 +26,20 @@ server {
     location / {
         try_files $uri $uri/ /index.html;
 
-        # helmet only covers responses Express generates; the document itself is
-        # served from here and had no policy at all.
+        # The Content-Security-Policy is set at the edge, in deploy/Caddyfile,
+        # so there is exactly one definition — two would be enforced as their
+        # intersection and the mismatch found months later as a feature that
+        # does not work.
         #
-        # img-src is deliberately wide: coverUrl accepts any external image,
-        # which is the existing design. The consequence, accepted: a collection
-        # owner can point a cover at a server they control and log the IP of
-        # everyone who views their page. Proxying every external image would
-        # close that and open an SSRF surface instead.
+        # The policy that used to live here was wrong in a way nothing
+        # reported: it listed no font host in style-src and had no font-src at
+        # all, so the Google Fonts stylesheet and every font file it pulls were
+        # both refused and the page quietly fell back to system-ui and Georgia.
         #
-        # 'unsafe-inline' is needed for styles because Vite injects critical
-        # CSS; scripts do not need it and do not get it. `always` so the header
-        # is present on error responses too, not only on 200s.
-        add_header Content-Security-Policy "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        # Note the consequence of moving it: `npm run prod` does not run Caddy
+        # and therefore serves no CSP. Verify policy changes against
+        # docker-compose.deploy.yml with SITE_ADDRESS=localhost, which exercises
+        # the real edge.
     }
 
     # Uploaded covers: served by the API container, outside /api/.
@@ -35,6 +55,6 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
     }
 }

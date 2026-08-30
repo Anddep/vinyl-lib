@@ -1,0 +1,205 @@
+# The deployed topology. Not for laptop use — `docker-compose.prod.yml` is that.
+#
+# The difference that matters: caddy is the only service that publishes a host
+# port. client, server and db are reachable only on app-network, so there is
+# nothing for Docker to open past the firewall. Images come from GHCR pinned by
+# digest, supplied by .images, which the deploy rewrites on each run.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    # The only ports published anywhere in this file. Anything added here is
+    # reachable from the internet regardless of what UFW says, because Docker
+    # writes its own iptables rules and they are evaluated first.
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # vinyl.is-a.dev in production; `localhost` to test the whole edge on a
+      # laptop against Caddy's internal CA.
+      - SITE_ADDRESS=${SITE_ADDRESS}
+    volumes:
+      # On the box the compose file and the Caddyfile sit side by side in
+      # /opt/vinyl-lib, so the default is right there. Testing from the repo
+      # root, where the Caddyfile lives under deploy/, override it:
+      #   CADDYFILE=./deploy/Caddyfile
+      - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
+      # Named, not a bind mount. Holds the issued certificates and the ACME
+      # account key — destroying it means re-issuing, and Let's Encrypt allows
+      # five duplicate certificates per week.
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # 80 and 443 are privileged ports.
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 48m
+    depends_on:
+      - client
+    networks:
+      - app-network
+
+  client:
+    image: ${CLIENT_IMAGE}
+    # No ports. Caddy reaches it over app-network; nothing else needs to.
+    environment:
+      # nginx.conf.template interpolates this into proxy_pass. Without it the
+      # rendered config has an invalid upstream port and nginx refuses to start.
+      - SERVER_PORT=${SERVER_PORT}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # The nginx master starts as root and drops its workers to the nginx user.
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      # The image's entrypoint renders default.conf.template into conf.d at
+      # start, so that path has to be writable even though the root is not.
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+      - /etc/nginx/conf.d
+    mem_limit: 32m
+    depends_on:
+      - server
+    networks:
+      - app-network
+
+  server:
+    image: ${SERVER_IMAGE}
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${SERVER_PORT}
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      # The origin the browser sees. Every OAuth redirect_uri is built from it,
+      # so it must match what is registered at the provider exactly.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      # Two here, not one: Caddy terminates TLS and forwards to nginx, which
+      # forwards to Express. Undercount and every per-IP limiter shares a single
+      # bucket and the Secure session cookie is never sent.
+      - TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - BOOTSTRAP_OWNER_EMAIL=${BOOTSTRAP_OWNER_EMAIL}
+      # Optional, with defaults in config/env.ts. Listed because this file
+      # whitelists what reaches the container: an unlisted variable in .env
+      # simply never arrives.
+      - SIGNUP_MODE=${SIGNUP_MODE}
+      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES}
+      - UPLOAD_QUOTA_BYTES=${UPLOAD_QUOTA_BYTES}
+      - MAX_RECORDS_PER_USER=${MAX_RECORDS_PER_USER}
+      - MAX_WISHLIST_PER_USER=${MAX_WISHLIST_PER_USER}
+      - MAX_SETUP_PER_USER=${MAX_SETUP_PER_USER}
+      - MAX_SIGNUPS_PER_HOUR=${MAX_SIGNUPS_PER_HOUR}
+    volumes:
+      - uploads:/app/server/uploads
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # No cap_add: the image runs as USER node and needs nothing.
+    read_only: true
+    tmpfs:
+      # npm_config_cache points here, so `npx prisma migrate deploy` has
+      # somewhere to write on an otherwise read-only filesystem.
+      - /tmp
+    mem_limit: 256m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:'+(process.env.PORT||4000)+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: postgres:16-alpine
+    # Tuned for a 1 GB host. The stock defaults assume a machine with memory to
+    # spare: shared_buffers alone defaults to 128MB and max_connections to 100,
+    # each of which reserves per-connection memory this box does not have.
+    #
+    # max_connections=25 covers what the app actually opens — Prisma's pool is
+    # (cores * 2 + 1) = 5 and connect-pg-simple's is 10 — plus the superuser
+    # reserve, with room to spare.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=25
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - max_wal_size=256MB
+    # No ports. This is the whole reason nmap shows nothing on 5432.
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # The postgres entrypoint fixes ownership of the data directory and then
+      # su-exec's to the postgres user. Without these it cannot start at all.
+      - CHOWN
+      - DAC_READ_SEARCH
+      - FOWNER
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    mem_limit: 256m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+  uploads:
+  caddy-data:
+  caddy-config:
+
+networks:
+  app-network:
+    driver: bridge

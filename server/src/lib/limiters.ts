@@ -13,9 +13,10 @@ interface LimiterOptions {
 /**
  * A per-IP limiter.
  *
- * Keyed on `req.ip`, which is the real client address because `app.ts` sets
- * `trust proxy` to 1 — without that every request behind nginx would share one
- * key and every limit here would be meaningless.
+ * Keyed on `req.ip`, which is the real client address only because `app.ts`
+ * trusts exactly as many proxies as there are (TRUST_PROXY_HOPS). Undercount
+ * and every request behind the proxy chain shares one key, which makes every
+ * limit here meaningless without anything appearing to be wrong.
  *
  * The default memory store is process-local. That is the whole application
  * today, one container; if this is ever run as two replicas the limits halve in
