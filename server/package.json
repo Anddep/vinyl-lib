@@ -22,7 +22,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "connect-pg-simple": "^10.0.0",
-    "express": "^4.21.1",
+    "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "express-session": "^1.19.0",
     "helmet": "^8.0.0",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/connect-pg-simple": "^7.0.3",
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/morgan": "^1.9.9",
     "@types/multer": "^2.2.0",
