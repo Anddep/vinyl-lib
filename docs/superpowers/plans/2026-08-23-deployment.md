@@ -44,7 +44,7 @@ docker-compose.deploy.yml          NEW  the four production services, images by 
   codeql.yml                       NEW  javascript-typescript, push/PR/weekly
   build.yml                        NEW  arm64 -> GHCR, SBOM, provenance, digests out
   deploy.yml                       NEW  ssh, migrate, up -d, health poll, auto-rollback
-.github/dependabot.yml             NEW  npm, github-actions, docker
+.github/dependabot.yml             ---  written, then removed (see Task 15)
 
 server/src/app.ts                  MOD  trust proxy from TRUST_PROXY_HOPS
 server/src/config/env.ts           MOD  TRUST_PROXY_HOPS, parsed as a count
@@ -788,21 +788,22 @@ The other half of criterion 6. Read the deploy job's log end to end.
 
 `ci: deploy to the host over a restricted ssh key`
 
-### Task 15: `dependabot.yml`
+### Task 15: `dependabot.yml` — created, then removed
 
-**Files:** `.github/dependabot.yml`
+**Outcome (2026-08-30): reverted.** The file was written and did its job, which
+turned out to be the problem: the first run opened ten pull requests, every one
+of them a major version bump — `prisma` 5 to 7, `express` 4 to 5, `typescript`
+5 to 7, `react` 18 to 19, and five GitHub Actions majors.
 
-- [x] **Step 1: Three ecosystems**
+Two of those would plausibly have broken the live site. `prisma` 5 to 7
+regenerates the client and may not accept the `binaryTargets` value this
+deployment sets; `express` 4 to 5 changes path-to-regexp, makes `req.query` a
+getter, and alters error propagation, all of which this codebase touches.
 
-`npm` at `/` (workspaces are covered from the root), `github-actions` at `/`, and `docker` at `/` for the base images in both Dockerfiles and the compose files. Weekly, grouped so a single PR carries patch bumps rather than one PR per package.
-
-- [x] **Step 2: Verify**
-
-Confirm Dependabot runs and either opens a PR or reports no updates needed.
-
-- [x] **Step 3: Commit**
-
-`ci: keep dependencies, actions and base images current`
+Removed at the operator's request. The safety it provided is not gone: `npm
+audit --audit-level=high` runs on every CI run and is blocking, so a vulnerable
+dependency still fails the build. What is gone is unsolicited major-version
+churn on a personal project.
 
 ---
 
