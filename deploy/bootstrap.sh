@@ -25,7 +25,15 @@ set -euo pipefail
 DEPLOY_USER=deploy
 DEPLOY_HOME=/opt/vinyl-lib
 SWAP_FILE=/swapfile
-SWAP_SIZE_MB=4096
+# Sized from the machine rather than fixed. A constant 4096 was chosen for a
+# 12 GB host and is actively harmful on a small one: on a 1 GB instance with an
+# 8.7 GB disk it consumed 46% of the filesystem to hold 36 MB of actual swap,
+# leaving too little room for the next image pull.
+#
+# Twice RAM is the conventional ceiling for a machine this size, capped at 2 GB
+# because nothing here benefits from more, and never more than a quarter of the
+# disk.
+SWAP_SIZE_MB=0  # computed in step 6 once /  and RAM are known
 TIMEZONE=Europe/Kyiv
 # The cloud image's default sudo user, kept in AllowUsers so you do not lock
 # yourself out. Override if your image calls it something else.
@@ -222,6 +230,23 @@ log "6/12  Swap"
 #
 # swappiness=10 keeps it as the emergency it is rather than something the kernel
 # reaches for casually.
+RAM_MB="$(free -m | awk '/^Mem:/{print $2}')"
+DISK_MB="$(df -m --output=size / | tail -1 | tr -d ' ')"
+SWAP_SIZE_MB=$(( RAM_MB * 2 ))
+(( SWAP_SIZE_MB > 2048 )) && SWAP_SIZE_MB=2048
+(( SWAP_SIZE_MB > DISK_MB / 4 )) && SWAP_SIZE_MB=$(( DISK_MB / 4 ))
+echo "    ${RAM_MB} MB RAM, ${DISK_MB} MB disk -> ${SWAP_SIZE_MB} MB of swap"
+
+# Resize rather than leave a wrongly-sized file in place, so re-running after a
+# move to a different machine corrects it.
+CURRENT_SWAP_MB=0
+[[ -f "${SWAP_FILE}" ]] && CURRENT_SWAP_MB=$(( $(stat -c %s "${SWAP_FILE}") / 1048576 ))
+if [[ -f "${SWAP_FILE}" ]] && (( CURRENT_SWAP_MB != SWAP_SIZE_MB )); then
+  echo "    resizing swap from ${CURRENT_SWAP_MB} MB"
+  swapoff "${SWAP_FILE}" 2>/dev/null || true
+  rm -f "${SWAP_FILE}"
+fi
+
 if [[ ! -f "${SWAP_FILE}" ]]; then
   fallocate -l "${SWAP_SIZE_MB}M" "${SWAP_FILE}" 2>/dev/null || \
     dd if=/dev/zero of="${SWAP_FILE}" bs=1M count="${SWAP_SIZE_MB}" status=none
