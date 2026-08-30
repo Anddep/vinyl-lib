@@ -48,9 +48,20 @@ export DEBIAN_FRONTEND=noninteractive
 log "1/12  Base packages"
 # ---------------------------------------------------------------------------
 apt-get update -qq
+# Note what is NOT here: iptables-persistent. On Ubuntu 24.04 it cannot be
+# installed alongside ufw — ufw pulls the nftables-backed iptables stack and
+# iptables-persistent wants the legacy one, so apt refuses the transaction with
+# "held broken packages" and the whole bootstrap dies at step 1. Confirmed by
+# bisecting the package set: every pair installs except `ufw
+# iptables-persistent`.
+#
+# Nothing is lost. It only saves rules across reboots, and nothing here depends
+# on that: the DOCKER-USER rules are reinstated by vinyl-docker-firewall.service
+# after every Docker start (step 9), and ufw persists its own rules through its
+# own service.
 apt-get install -y -qq \
   ca-certificates curl gnupg \
-  ufw fail2ban unattended-upgrades iptables-persistent
+  ufw fail2ban unattended-upgrades
 
 # ---------------------------------------------------------------------------
 log "2/12  Docker CE"
@@ -233,6 +244,17 @@ log "7/12  SSH hardening"
 # a box with no working key installed is the single most common way to lose a
 # server permanently, and one check prevents it.
 AUTH_KEYS="${DEPLOY_HOME}/.ssh/authorized_keys"
+
+# Fix the ownership before checking anything else. sshd drops to the target user
+# to read this file, so a root-owned 0600 authorized_keys is unreadable by the
+# very user it authorises — and the failure is reported as "Permission denied
+# (publickey)", which looks like a wrong key rather than a wrong owner. Anyone
+# who created it with `sudo nano` or `sudo tee` lands here.
+if [[ -e "${AUTH_KEYS}" ]]; then
+  chown "${DEPLOY_USER}:${DEPLOY_USER}" "${AUTH_KEYS}"
+  chmod 600 "${AUTH_KEYS}"
+fi
+
 if [[ ! -s "${AUTH_KEYS}" ]]; then
   die "no key in ${AUTH_KEYS}.
     Install the deploy public key first (DEPLOYMENT.md has the exact line,

@@ -273,6 +273,18 @@ sudo nano /opt/vinyl-lib/.ssh/authorized_keys
 Paste **one line**: the restrictions, then a space, then the entire contents of
 `~/.ssh/vinyl-deploy.pub` from your laptop.
 
+Then fix the ownership, which `sudo` will have got wrong:
+
+```bash
+sudo chown deploy:deploy /opt/vinyl-lib/.ssh/authorized_keys && sudo chmod 600 /opt/vinyl-lib/.ssh/authorized_keys
+```
+
+> Do not skip that. `sudo nano` creates the file owned by **root**, and sshd
+> drops to the `deploy` user to read it — so a root-owned `0600` file is
+> unreadable by the very account it authorises. The error you get is
+> `Permission denied (publickey)`, which sends you hunting for a wrong key when
+> the key is fine. `bootstrap.sh` also repairs this if it runs afterwards.
+
 ```
 command="/opt/vinyl-lib/remote-deploy.sh",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding,no-user-rc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... vinyl-lib github actions deploy
 ```
