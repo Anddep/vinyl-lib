@@ -24,11 +24,26 @@
 	# who views their page. Proxying every external image would close that and
 	# open an SSRF surface instead.
 	#
+	# `upgrade-insecure-requests` is deliberately absent. It rewrites every
+	# http:// subresource to https://, which breaks the site outright whenever it
+	# is served over plain HTTP — as it is before a certificate exists — because
+	# the browser upgrades /assets/*.js to a port nothing is listening on and the
+	# page renders blank with no network error visible in the response.
+	#
+	# It also buys very little here. Every subresource is either a same-origin
+	# relative URL, which inherits the document's scheme automatically, or one of
+	# the two Google Font hosts, which are already https. A user-supplied http://
+	# coverUrl is refused by img-src rather than upgraded, which is the safer of
+	# the two behaviours. HSTS handles the top-level upgrade for real visitors.
+	#
+	# Note this class of bug is invisible to curl, which does not enforce CSP at
+	# all. Policy changes need a browser.
+	#
 	# Scoped away from /api/*, where helmet already sets a policy. Two policies
 	# are enforced as their intersection, which buys nothing and costs one
 	# confusing debugging session later.
 	@document not path /api/*
-	header @document Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+	header @document Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 	header {
 		# A year, subdomains included. No `preload`: submitting to the preload
