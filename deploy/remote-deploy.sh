@@ -130,8 +130,17 @@ else
 fi
 
 install -m 0644 "${STAGE}/docker-compose.deploy.yml" "${COMPOSE_FILE}"
-install -m 0644 "${STAGE}/Caddyfile" "${DEPLOY_DIR}/Caddyfile"
 install -m 0644 "${STAGE}/.images" "${IMAGES_FILE}"
+
+# The Caddyfile is written IN PLACE, not installed. This matters and the reason
+# is not obvious: Docker bind-mounts a single file by inode. `install` replaces
+# the file, which creates a new inode, and the running container stays attached
+# to the old one — so the host file updates, the container keeps serving the
+# previous policy, and `caddy reload` re-reads the stale inode and honestly
+# reports success. Truncating and rewriting preserves the inode, so the mount
+# sees the change.
+cat "${STAGE}/Caddyfile" > "${DEPLOY_DIR}/Caddyfile"
+chmod 0644 "${DEPLOY_DIR}/Caddyfile"
 
 # ---------------------------------------------------------------------------
 # 4. Pull.
@@ -229,6 +238,19 @@ compose run --rm --no-deps server npx prisma migrate deploy \
 # so a changed .env or a changed image appears to deploy and changes nothing.
 log "Starting the new containers"
 compose up -d --remove-orphans
+
+# Compose will not restart Caddy for a changed Caddyfile: the image digest is
+# unchanged and the policy lives in a bind-mounted file it cannot see into. Ask
+# Caddy to reload explicitly, which is graceful and drops no connections.
+#
+# A rejected config leaves the previous one running, so this warns rather than
+# failing the deploy — the images are already live and healthy by this point,
+# and tearing that down over a header would be the worse outcome.
+if compose ps --status running --services 2>/dev/null | grep -qx caddy; then
+  log "Reloading the edge configuration"
+  compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile \
+    || echo "    WARNING: caddy rejected the new configuration; the previous one is still serving"
+fi
 
 # ---------------------------------------------------------------------------
 # 10. Health gate, and the rollback if it does not answer.
