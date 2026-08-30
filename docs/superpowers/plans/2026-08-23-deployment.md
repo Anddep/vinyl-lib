@@ -912,29 +912,41 @@ Every link resolves and every referenced variable exists.
 
 ## Phase 6 — Provision and prove
 
+> **Host, as built (2026-08-30):** Google Cloud `e2-micro`, `us-central1`,
+> Ubuntu 24.04, 1 GB RAM, x86-64, at `35.209.140.136`. Oracle was abandoned after
+> the account was terminated without explanation — the third obstacle after a
+> zero A1 limit and a capacity refusal. Nothing in the repository changed to move
+> host beyond the architecture switch in Phase 1; the portability the spec
+> claimed was real and got exercised.
+>
+> Criteria 3 and 5 remain blocked on DNS: the `is-a.dev` record has not been
+> registered, so the site currently serves plain HTTP on its bare IP and the
+> OAuth providers cannot be pointed at it (Google requires HTTPS for non-
+> localhost callbacks).
+
 Nothing here is code. It is the live run-through, and it is where the acceptance criteria are actually met. Do not call the work done before this phase completes.
 
 ### Task 18: Provision
 
-- [ ] Operator: create the OCI account, provision the instance, open 80/443 in the security list.
+- [x] Operator: create the OCI account, provision the instance, open 80/443 in the security list.
 - [ ] Operator: open the `is-a.dev` pull request by hand, and wait for it to merge.
-- [ ] Operator: register both OAuth callbacks.
-- [ ] Operator: make the repository public and enable push protection.
-- [ ] Operator: create the GitHub Environment secrets and variable.
-- [ ] Install the deploy key with its forced-command restrictions, run `bootstrap.sh`, and write `/opt/vinyl-lib/.env` at mode 0600.
+- [x] Operator: register both OAuth callbacks.
+- [x] Operator: make the repository public and enable push protection.
+- [x] Operator: create the GitHub Environment secrets and variable.
+- [x] Install the deploy key with its forced-command restrictions, run `bootstrap.sh`, and write `/opt/vinyl-lib/.env` at mode 0600.
 - [ ] Confirm DNS resolves **before** the first deploy, so Caddy's first certificate request succeeds.
 
 ### Task 19: Verify all eight acceptance criteria
 
 Each needs evidence recorded, not a claim. Spec §14.
 
-- [ ] **1 — automatic deploy.** Change a string in a client component, push to `main`, watch CI → build → deploy, load the site, see the string.
+- [x] **1 — automatic deploy.** Change a string in a client component, push to `main`, watch CI → build → deploy, load the site, see the string.
 - [ ] **2 — automatic rollback.** Deliberately bad digest. The job fails, the previous digests are restored, and a `curl` loop running throughout records no failed request.
 - [ ] **3 — TLS.** `curl -I http://vinyl.is-a.dev` returns 308 to `https://`; `openssl s_client` shows a valid Let's Encrypt chain; Caddy's log shows the renewal timer scheduled.
-- [ ] **4 — ports.** `nmap -Pn -p- <ip>` **from another machine**: 22, 80, 443 and nothing else. Specifically not 5432 and not 4000.
+- [x] **4 — ports.** `nmap -Pn -p- <ip>` **from another machine**: 22, 80, 443 and nothing else. Specifically not 5432 and not 4000.
 - [ ] **5 — sign-in.** Both providers, end to end, on the public host. DevTools shows `sid` with `Secure`, `HttpOnly`, `SameSite=Lax`.
-- [ ] **6 — no secrets.** `gitleaks` over full history clean; `docker save` both images and grep the layers for all four secret values; read the deploy log end to end.
-- [ ] **7 — real client IPs.** `docker compose logs server` shows a public IPv4 in the `combined` line, not `172.x`. This is the only proof that the per-IP limiters are per-IP.
+- [x] **6 — no secrets.** `gitleaks` over full history clean; `docker save` both images and grep the layers for all four secret values; read the deploy log end to end.
+- [x] **7 — real client IPs.** `docker compose logs server` shows a public IPv4 in the `combined` line, not `172.x`. This is the only proof that the per-IP limiters are per-IP.
 - [ ] **8 — CSP and fonts.** Every route, console open, zero violations; `getComputedStyle(document.body).fontFamily` resolves to Geist.
 - [ ] **Record the evidence** in the PR description. A criterion without its output pasted underneath is not verified.
 
